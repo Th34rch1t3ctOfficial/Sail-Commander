@@ -2016,8 +2016,8 @@ begin
   // Tool bar buttons should be big enough for a finger
   if gMobileMode then
   begin
-    gToolBarIconSize := MobileIconSize(16);
-    gToolBarButtonSize := gToolBarIconSize + MobilePx(8);
+    gToolBarIconSize := MobileIconSize(24);
+    gToolBarButtonSize := gToolBarIconSize + MobilePx(10);
   end;
   gToolBarShowCaptions := False;
   gToolbarReportErrorWithCommands := FALSE;

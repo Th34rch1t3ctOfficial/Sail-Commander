@@ -2,8 +2,8 @@
    Sail Commander
    -------------------------------------------------------------------------
    Main window layout for the mobile mode: the tool bar with the main menu
-   button at the top, one file panel at a time and the main file commands
-   at the bottom
+   button at the top, one file panel at a time with the side bar (switch
+   panel, target equals source) and the main file commands at the bottom
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -40,7 +40,7 @@ procedure MobileUpdatePanels;
 implementation
 
 uses
-  Controls, Graphics, Buttons, Forms, Menus, ExtCtrls, Math, uGlobs, uMobile, uFilePanelSelect,
+  Controls, Graphics, Buttons, Forms, Menus, ExtCtrls, Math, LCLType, uGlobs, uMobile, uFilePanelSelect,
   uPixMapManager, fMain
 {$IF DEFINED(LCLQT5)}
   , qtwidgets
@@ -53,7 +53,29 @@ const
 
   KEYS_HEIGHT = 56;
 
+  // Side bar buttons from the top to the bottom
+  SIDE_BUTTONS: array[0..4] of (sbSwitch, sbEqual) = (sbSwitch, sbSwitch, sbSwitch, sbEqual, sbEqual);
+
 type
+
+  { TMobileSideBar }
+
+  {en
+     Narrow bar next to the file panel: an arrow switches to the opposite
+     panel, an equals sign shows the current directory in the opposite panel
+  }
+  TMobileSideBar = class(TCustomControl)
+  private
+    FPressed: Integer;
+    function GetButtonAt(X, Y: Integer): Integer;
+    function GetButtonRect(AIndex: Integer): TRect;
+  protected
+    procedure Paint; override;
+    procedure MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer); override;
+    procedure MouseUp(Button: TMouseButton; Shift: TShiftState; X, Y: Integer); override;
+  public
+    constructor Create(AOwner: TComponent); override;
+  end;
 
   { TLayoutHelper }
 
@@ -62,6 +84,7 @@ type
     FMenu: TPopupMenu;
     FTopPanel: TPanel;
     FMenuButton: TSpeedButton;
+    FSideBar: TMobileSideBar;
     procedure CloneMenuItems(ASource, ATarget: TMenuItem);
     procedure MenuButtonClick(Sender: TObject);
   public
@@ -71,6 +94,7 @@ type
     procedure KeysResize(Sender: TObject);
     procedure ShowMainMenu(const APoint: TPoint);
     procedure UpdateTopPanel;
+    procedure UpdateSideBar;
   end;
 
 var
@@ -82,6 +106,132 @@ begin
   begin
     if Height <> MobilePx(KEYS_HEIGHT) then Height:= MobilePx(KEYS_HEIGHT);
   end;
+end;
+
+{ TMobileSideBar }
+
+constructor TMobileSideBar.Create(AOwner: TComponent);
+begin
+  inherited Create(AOwner);
+  Align:= alRight;
+  TabStop:= False;
+  DoubleBuffered:= True;
+  ControlStyle:= ControlStyle + [csOpaque];
+  FPressed:= -1;
+end;
+
+function TMobileSideBar.GetButtonRect(AIndex: Integer): TRect;
+var
+  AHeight: Integer;
+begin
+  AHeight:= Min(MobilePx(44), ClientHeight div Length(SIDE_BUTTONS));
+  Result:= Classes.Rect(0, AIndex * AHeight, ClientWidth, (AIndex + 1) * AHeight);
+end;
+
+function TMobileSideBar.GetButtonAt(X, Y: Integer): Integer;
+var
+  I: Integer;
+begin
+  for I:= Low(SIDE_BUTTONS) to High(SIDE_BUTTONS) do
+  begin
+    if PtInRect(GetButtonRect(I), Classes.Point(X, Y)) then Exit(I);
+  end;
+  Result:= -1;
+end;
+
+procedure TMobileSideBar.Paint;
+var
+  R: TRect;
+  I, W, H, CX, CY, D: Integer;
+  ABackColor, ATextColor: TColor;
+begin
+  ABackColor:= gColors.FilePanel^.BackColor;
+  ATextColor:= gColors.FilePanel^.ForeColor;
+
+  Canvas.Brush.Style:= bsSolid;
+  Canvas.Brush.Color:= ABackColor;
+  Canvas.FillRect(ClientRect);
+
+  Canvas.AntialiasingMode:= amOn;
+  Canvas.Pen.Style:= psSolid;
+  Canvas.Pen.Color:= ATextColor;
+  Canvas.Pen.Width:= Max(1, MobilePx(3) div 2);
+
+  // Half of a symbol width and height
+  W:= (ClientWidth * 3) div 8;
+  H:= Max(2, W div 2);
+
+  for I:= Low(SIDE_BUTTONS) to High(SIDE_BUTTONS) do
+  begin
+    R:= GetButtonRect(I);
+    if FPressed = I then
+    begin
+      Canvas.Brush.Color:= RGBToColor(
+        (Red(ColorToRGB(ABackColor)) * 4 + Red(ColorToRGB(ATextColor))) div 5,
+        (Green(ColorToRGB(ABackColor)) * 4 + Green(ColorToRGB(ATextColor))) div 5,
+        (Blue(ColorToRGB(ABackColor)) * 4 + Blue(ColorToRGB(ATextColor))) div 5);
+      Canvas.FillRect(R);
+    end;
+    CX:= (R.Left + R.Right) div 2;
+    CY:= (R.Top + R.Bottom) div 2;
+    case SIDE_BUTTONS[I] of
+      sbSwitch:
+        begin
+          // The arrow points to the opposite panel
+          if frmMain.SelectedPanel = fpLeft then D:= 1 else D:= -1;
+          Canvas.Line(CX - W, CY, CX + W, CY);
+          Canvas.Line(CX + D * W, CY, CX + D * (W - H), CY - H);
+          Canvas.Line(CX + D * W, CY, CX + D * (W - H), CY + H);
+        end;
+      sbEqual:
+        begin
+          D:= Max(2, H div 2);
+          Canvas.Line(CX - W, CY - D, CX + W, CY - D);
+          Canvas.Line(CX - W, CY + D, CX + W, CY + D);
+        end;
+    end;
+  end;
+end;
+
+procedure TMobileSideBar.MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
+begin
+  inherited MouseDown(Button, Shift, X, Y);
+  if Button = mbLeft then
+  begin
+    FPressed:= GetButtonAt(X, Y);
+    Invalidate;
+  end;
+end;
+
+procedure TMobileSideBar.MouseUp(Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
+var
+  APressed: Integer;
+begin
+  inherited MouseUp(Button, Shift, X, Y);
+  if Button = mbLeft then
+  begin
+    APressed:= FPressed;
+    FPressed:= -1;
+    Invalidate;
+    if (APressed >= 0) and (APressed = GetButtonAt(X, Y)) then
+    begin
+      case SIDE_BUTTONS[APressed] of
+        sbSwitch: frmMain.Commands.cm_FocusSwap([]);
+        sbEqual:  frmMain.Commands.cm_TargetEqualSource([]);
+      end;
+    end;
+  end;
+end;
+
+procedure TLayoutHelper.UpdateSideBar;
+begin
+  if not Assigned(FSideBar) then
+  begin
+    FSideBar:= TMobileSideBar.Create(frmMain);
+    FSideBar.Parent:= frmMain.pnlMain;
+  end;
+  FSideBar.Width:= MulDiv(MobilePx(32), frmMain.PixelsPerInch, Screen.PixelsPerInch);
+  FSideBar.Invalidate;
 end;
 
 destructor TLayoutHelper.Destroy;
@@ -257,6 +407,9 @@ begin
       EnableAutoSizing;
     end;
   end;
+
+  // The arrows point to the opposite panel
+  if Assigned(LayoutHelper.FSideBar) then LayoutHelper.FSideBar.Invalidate;
 end;
 
 procedure UpdateFunctionButtons;
@@ -334,6 +487,7 @@ begin
   end;
 
   LayoutHelper.UpdateTopPanel;
+  LayoutHelper.UpdateSideBar;
   UpdateFunctionButtons;
   MobileUpdatePanels;
 end;

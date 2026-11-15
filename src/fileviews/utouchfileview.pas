@@ -33,7 +33,7 @@ type
 
   TTouchFileView = class;
 
-  THeaderZone = (hzNone, hzPath, hzCount, hzParent, hzSwap, hzHome, hzRefresh);
+  THeaderZone = (hzNone, hzPath, hzCount, hzParent, hzHome, hzRefresh);
 
   TPlaceKind = (pkFolder, pkBookmarks);
 
@@ -209,7 +209,7 @@ uses
 const
   // Names of the Double Commander theme icons
   HEADER_ICONS: array[THeaderZone] of String =
-    ('', '', '', 'go-up', 'cm_focusswap', 'cm_changedirtohome', 'cm_refresh');
+    ('', '', '', 'go-up', 'cm_changedirtohome', 'cm_refresh');
 
   KINETIC_INTERVAL = 15;    // milliseconds
   KINETIC_FRICTION = 0.0025; // velocity loss per millisecond
@@ -267,13 +267,11 @@ begin
       Result.Right:= ClientWidth - V.FMargin;
     hzHome:
       Result.Right:= ClientWidth - V.FMargin - AWidth;
-    hzSwap:
-      Result.Right:= ClientWidth - V.FMargin - AWidth * 2;
     else
       begin
         // Parent directory button occupies all the remaining space
         Result.Left:= 0;
-        Result.Right:= ClientWidth - V.FMargin - AWidth * 3;
+        Result.Right:= ClientWidth - V.FMargin - AWidth * 2;
         Exit;
       end;
   end;
@@ -324,7 +322,7 @@ begin
   case FPressed of
     hzPath, hzCount:
       Canvas.FillRect(Classes.Rect(0, 0, ClientWidth, GetPathHeight));
-    hzParent, hzSwap, hzHome, hzRefresh:
+    hzParent, hzHome, hzRefresh:
       Canvas.FillRect(GetButtonRect(FPressed));
   end;
 
@@ -364,7 +362,7 @@ begin
   end;
 
   // Buttons
-  for AZone:= hzSwap to hzRefresh do
+  for AZone:= hzHome to hzRefresh do
     V.DrawIcon(Canvas, GetButtonRect(AZone), V.FIcons[AZone]);
 
   // Separator
@@ -909,20 +907,12 @@ begin
 end;
 
 procedure TTouchFileView.DrawIcon(ACanvas: TCanvas; const ARect: TRect; AIcon: TBitmap);
-var
-  R: TRect;
 begin
   if not Assigned(AIcon) then Exit;
-  R.Left:= ARect.Left + (ARect.Width - gIconsSize) div 2;
-  R.Top:= ARect.Top + (ARect.Height - gIconsSize) div 2;
-  R.Right:= R.Left + gIconsSize;
-  R.Bottom:= R.Top + gIconsSize;
-  if (AIcon.Width = gIconsSize) and (AIcon.Height = gIconsSize) then
-    ACanvas.Draw(R.Left, R.Top, AIcon)
-  else begin
-    // Not all the icons are available in a big size
-    ACanvas.StretchDraw(R, AIcon);
-  end;
+  // Not all the icons are available in a big size, such an icon
+  // is shown in its original size, so it is as sharp as on a desktop
+  ACanvas.Draw(ARect.Left + (ARect.Width - AIcon.Width) div 2,
+               ARect.Top + (ARect.Height - AIcon.Height) div 2, AIcon);
 end;
 
 procedure TTouchFileView.ClearPlaces;
@@ -1259,8 +1249,6 @@ begin
       end;
     hzParent:
       ChangePathToParent(True);
-    hzSwap:
-      frmMain.Commands.cm_FocusSwap([]);
     hzHome:
       frmMain.Commands.cm_ChangeDirToHome([]);
     hzRefresh:
