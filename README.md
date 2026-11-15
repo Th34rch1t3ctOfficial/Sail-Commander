@@ -5,8 +5,8 @@ adapted for [Sailfish OS](https://sailfishos.org) and a touch screen. It is the 
 application (the same source code, plugins, configuration and icons), with
 a *mobile mode* which is turned on automatically on Sailfish OS:
 
-- one file panel at a time with a side bar: an arrow switches to the opposite panel,
-  an equals sign shows the current directory in the opposite panel
+- one file panel at a time with a side bar at the side of the opposite panel: an arrow
+  switches to that panel, an equals sign shows the current directory in it
 - touch file view: two-line items, kinetic scrolling, tap opens a file or directory,
   tap on an icon selects it, long press shows the context menu
 - the tool bar at the top with the main menu behind the three dots button,

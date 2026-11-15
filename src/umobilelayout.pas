@@ -159,7 +159,7 @@ begin
 
   // Half of a symbol width and height
   W:= (ClientWidth * 3) div 8;
-  H:= Max(2, W div 2);
+  H:= Max(3, (W * 2) div 3);
 
   for I:= Low(SIDE_BUTTONS) to High(SIDE_BUTTONS) do
   begin
@@ -177,17 +177,24 @@ begin
     case SIDE_BUTTONS[I] of
       sbSwitch:
         begin
-          // The arrow points to the opposite panel
+          // Outlined arrow which points to the opposite panel
           if frmMain.SelectedPanel = fpLeft then D:= 1 else D:= -1;
-          Canvas.Line(CX - W, CY, CX + W, CY);
-          Canvas.Line(CX + D * W, CY, CX + D * (W - H), CY - H);
-          Canvas.Line(CX + D * W, CY, CX + D * (W - H), CY + H);
+          Canvas.Line(CX - D * W, CY, CX + D * (W - (H * 2) div 3), CY);
+          Canvas.Polyline([Classes.Point(CX + D * W, CY),
+                           Classes.Point(CX + D * (W - H), CY - H),
+                           Classes.Point(CX + D * (W - (H * 2) div 3), CY),
+                           Classes.Point(CX + D * (W - H), CY + H),
+                           Classes.Point(CX + D * W, CY)]);
         end;
       sbEqual:
         begin
-          D:= Max(2, H div 2);
-          Canvas.Line(CX - W, CY - D, CX + W, CY - D);
-          Canvas.Line(CX - W, CY + D, CX + W, CY + D);
+          // Outlined bar
+          D:= Max(2, H div 3);
+          Canvas.Polyline([Classes.Point(CX - W, CY - D),
+                           Classes.Point(CX + W, CY - D),
+                           Classes.Point(CX + W, CY + D),
+                           Classes.Point(CX - W, CY + D),
+                           Classes.Point(CX - W, CY - D)]);
         end;
     end;
   end;
@@ -408,8 +415,16 @@ begin
     end;
   end;
 
-  // The arrows point to the opposite panel
-  if Assigned(LayoutHelper.FSideBar) then LayoutHelper.FSideBar.Invalidate;
+  // The side bar is at the side where the opposite panel is
+  if Assigned(LayoutHelper.FSideBar) then
+  begin
+    if frmMain.SelectedPanel = fpLeft then
+      LayoutHelper.FSideBar.Align:= alRight
+    else begin
+      LayoutHelper.FSideBar.Align:= alLeft;
+    end;
+    LayoutHelper.FSideBar.Invalidate;
+  end;
 end;
 
 procedure UpdateFunctionButtons;
