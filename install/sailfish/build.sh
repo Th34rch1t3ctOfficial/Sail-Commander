@@ -27,7 +27,7 @@ case "$(uname -m)" in
     FPC_ARCHIVE=fpc-$FPC_VERSION.aarch64-linux
     ;;
   arm*)
-    FPC_ARCHIVE=fpc-$FPC_VERSION.arm-linux-eabihf-raspberry
+    FPC_ARCHIVE=fpc-$FPC_VERSION.arm-linux-raspberry-2
     ;;
   i?86)
     FPC_ARCHIVE=fpc-$FPC_VERSION.i386-linux

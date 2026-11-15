@@ -1082,7 +1082,12 @@ end;
 
 {$IF DEFINED(UNIX) AND NOT (DEFINED(DARWIN) OR DEFINED(HAIKU))}
 function IsWaylandSession: Boolean;
-{$IF DEFINED(LCLQT5) or DEFINED(LCLQT6) or DEFINED(LCLGTK3)}
+{$IF DEFINED(SAILFISH)}
+begin
+  // Sailfish OS compositor is a Wayland compositor
+  Result:= True;
+end;
+{$ELSEIF DEFINED(LCLQT5) or DEFINED(LCLQT6) or DEFINED(LCLGTK3)}
 const
   FIsWayland: TDuplicates = dupIgnore;
 begin
