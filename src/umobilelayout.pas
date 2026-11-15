@@ -1,8 +1,9 @@
 {
    Sail Commander
    -------------------------------------------------------------------------
-   Main window layout for the mobile mode: main menu at the top,
-   one file panel at a time and the main file commands at the bottom
+   Main window layout for the mobile mode: the tool bar with the main menu
+   button at the top, one file panel at a time and the main file commands
+   at the bottom
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -25,7 +26,7 @@ unit uMobileLayout;
 interface
 
 uses
-  Classes, SysUtils;
+  Classes, SysUtils, Types;
 
 {en
    Applies mobile layout to the main window,
@@ -36,12 +37,15 @@ procedure MobileApplyLayout;
    Shows the selected file panel and hides the opposite one.
 }
 procedure MobileUpdatePanels;
-
 implementation
 
 uses
-  Controls, Graphics, Buttons, Forms, LCLType, LCLIntf, uGlobs, uMobile, uFilePanelSelect,
-  uPixMapManager, fMain;
+  Controls, Graphics, Buttons, Forms, Menus, ExtCtrls, Math, uGlobs, uMobile, uFilePanelSelect,
+  uPixMapManager, fMain
+{$IF DEFINED(LCLQT5)}
+  , qtwidgets
+{$ENDIF}
+  ;
 
 const
   // Commands which are shown at the bottom of the main window
@@ -54,7 +58,19 @@ type
   { TLayoutHelper }
 
   TLayoutHelper = class
+  private
+    FMenu: TPopupMenu;
+    FTopPanel: TPanel;
+    FMenuButton: TSpeedButton;
+    procedure CloneMenuItems(ASource, ATarget: TMenuItem);
+    procedure MenuButtonClick(Sender: TObject);
+  public
+    FMenuHidden: Boolean;
+    procedure HideMainMenu(Data: PtrInt);
+    destructor Destroy; override;
     procedure KeysResize(Sender: TObject);
+    procedure ShowMainMenu(const APoint: TPoint);
+    procedure UpdateTopPanel;
   end;
 
 var
@@ -65,6 +81,144 @@ begin
   with TControl(Sender) do
   begin
     if Height <> MobilePx(KEYS_HEIGHT) then Height:= MobilePx(KEYS_HEIGHT);
+  end;
+end;
+
+destructor TLayoutHelper.Destroy;
+begin
+  FreeAndNil(FMenu);
+  inherited Destroy;
+end;
+
+procedure TLayoutHelper.CloneMenuItems(ASource, ATarget: TMenuItem);
+var
+  I: Integer;
+  AItem, ANewItem: TMenuItem;
+begin
+  for I:= 0 to ASource.Count - 1 do
+  begin
+    AItem:= ASource.Items[I];
+    if not AItem.Visible then Continue;
+
+    ANewItem:= TMenuItem.Create(FMenu);
+    if Assigned(AItem.Action) then
+      ANewItem.Action:= AItem.Action
+    else begin
+      ANewItem.Caption:= AItem.Caption;
+      ANewItem.Enabled:= AItem.Enabled;
+      ANewItem.RadioItem:= AItem.RadioItem;
+      ANewItem.Checked:= AItem.Checked;
+      ANewItem.Hint:= AItem.Hint;
+      ANewItem.Tag:= AItem.Tag;
+      // A submenu is opened by the menu itself
+      if AItem.Count = 0 then ANewItem.OnClick:= AItem.OnClick;
+    end;
+    ATarget.Add(ANewItem);
+
+    if AItem.Count > 0 then CloneMenuItems(AItem, ANewItem);
+  end;
+end;
+
+procedure TLayoutHelper.ShowMainMenu(const APoint: TPoint);
+begin
+  // The main menu changes at runtime, so mirror it each time
+  FreeAndNil(FMenu);
+  FMenu:= TPopupMenu.Create(nil);
+  CloneMenuItems(frmMain.mnuMain.Items, FMenu.Items);
+  FMenu.PopUp(APoint.X, APoint.Y);
+end;
+
+procedure TLayoutHelper.HideMainMenu(Data: PtrInt);
+begin
+  if not Assigned(frmMain) then Exit;
+  if not frmMain.HandleAllocated then
+  begin
+    // Try again when the window is created
+    Application.QueueAsyncCall(@HideMainMenu, 0);
+    Exit;
+  end;
+  FMenuHidden:= True;
+{$IF DEFINED(LCLQT5)}
+  // The widgetset keeps the menu bar of the window visible
+  if TQtWidget(frmMain.Handle) is TQtMainWindow then
+  begin
+    with TQtMainWindow(frmMain.Handle) do
+    begin
+      if Assigned(MenuBar) then MenuBar.setVisible(False);
+    end;
+  end;
+{$ENDIF}
+end;
+
+procedure TLayoutHelper.MenuButtonClick(Sender: TObject);
+begin
+  // Show the menu below the button, aligned to the right edge of the screen
+  with FMenuButton do
+    ShowMainMenu(ClientToScreen(Classes.Point(0, Height)));
+end;
+
+procedure TLayoutHelper.UpdateTopPanel;
+var
+  X, Y, I, D, ASize: Integer;
+  ABitmap: TBitmap;
+begin
+  with frmMain do
+  begin
+    if not Assigned(FTopPanel) then
+    begin
+      // The tool bar and the main menu button (three dots) after it
+      FTopPanel:= TPanel.Create(frmMain);
+      FTopPanel.Parent:= frmMain;
+      FTopPanel.Align:= alTop;
+      FTopPanel.BevelOuter:= bvNone;
+      FTopPanel.Caption:= EmptyStr;
+      FTopPanel.AutoSize:= True;
+
+      FMenuButton:= TSpeedButton.Create(FTopPanel);
+      FMenuButton.Parent:= FTopPanel;
+      FMenuButton.Flat:= True;
+      FMenuButton.OnClick:= @MenuButtonClick;
+      FMenuButton.Anchors:= [akTop, akRight];
+      FMenuButton.AnchorSideTop.Control:= FTopPanel;
+      FMenuButton.AnchorSideRight.Control:= FTopPanel;
+      FMenuButton.AnchorSideRight.Side:= asrRight;
+
+      MainToolBar.Parent:= FTopPanel;
+      MainToolBar.Align:= alNone;
+      MainToolBar.Anchors:= [akTop, akLeft, akRight];
+      MainToolBar.AnchorSideTop.Control:= FTopPanel;
+      MainToolBar.AnchorSideLeft.Control:= FTopPanel;
+      MainToolBar.AnchorSideRight.Control:= FMenuButton;
+      MainToolBar.AnchorSideRight.Side:= asrLeft;
+    end;
+
+    // Three dots
+    ASize:= gToolBarIconSize;
+    ABitmap:= TBitmap.Create;
+    try
+      ABitmap.SetSize(ASize, ASize);
+      ABitmap.Canvas.Brush.Color:= clFuchsia;
+      ABitmap.Canvas.FillRect(0, 0, ASize, ASize);
+      ABitmap.Canvas.Pen.Style:= psClear;
+      ABitmap.Canvas.Brush.Color:= ColorToRGB(clBtnText);
+      D:= Max(1, ASize div 12);
+      X:= ASize div 2;
+      for I:= -1 to 1 do
+      begin
+        Y:= ASize div 2 + I * (ASize div 3);
+        ABitmap.Canvas.Ellipse(X - D, Y - D, X + D + 1, Y + D + 1);
+      end;
+      ABitmap.TransparentColor:= clFuchsia;
+      ABitmap.Transparent:= True;
+      FMenuButton.Glyph.Assign(ABitmap);
+    finally
+      ABitmap.Free;
+    end;
+    FMenuButton.Width:= gToolBarButtonSize;
+    FMenuButton.Height:= gToolBarButtonSize;
+
+    MainToolBar.Visible:= True;
+    FTopPanel.Top:= -1;
   end;
 end;
 
@@ -149,24 +303,21 @@ begin
 end;
 
 procedure MobileApplyLayout;
-var
-  AHeight: Integer;
 begin
   if not Assigned(frmMain) then Exit;
 
   with frmMain do
   begin
-    // The main menu is the only way how to get to the most of commands
-    if not Assigned(Menu) then Menu:= mnuMain;
+    // The main menu is shown as a popup menu by the three dots button
+    if Assigned(frmMain.Menu) then frmMain.Menu:= nil;
+    // The menu bar can be hidden only when the window exists
+    Application.QueueAsyncCall(@LayoutHelper.HideMainMenu, 0);
 
-    // A phone application always occupies the whole screen,
-    // the main menu is not a part of the form client area
-    AHeight:= Screen.Height - GetSystemMetrics(SM_CYMENU);
-    if (Width <> Screen.Width) or (Height <> AHeight) then
-      SetBounds(0, 0, Screen.Width, AHeight);
+    // A phone application always occupies the whole screen
+    if (Width <> Screen.Width) or (Height <> Screen.Height) then
+      SetBounds(0, 0, Screen.Width, Screen.Height);
 
     // No place for these on a small screen
-    MainToolBar.Visible:= False;
     MiddleToolbar.Visible:= False;
     MainSplitter.Visible:= False;
     pnlDisk.Visible:= False;
@@ -182,6 +333,7 @@ begin
     RightTabs.ShowTabs:= (RightTabs.PageCount > 1);
   end;
 
+  LayoutHelper.UpdateTopPanel;
   UpdateFunctionButtons;
   MobileUpdatePanels;
 end;
