@@ -1014,8 +1014,9 @@ var
 {$ENDIF}
 
 const
-  // The biggest size in which all the tool bar icons are available
-  MOBILE_TOOLBAR_ICON = 32;
+  // The size of the tool bar icons which is enlarged in mobile mode,
+  // some icons have a different look in the other sizes
+  MOBILE_TOOLBAR_ICON = 24;
 
 var
   FunctionButtonsCaptions: array[0..7] of record
