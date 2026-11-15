@@ -146,7 +146,8 @@ var
 
 implementation
 
-{$IF DEFINED(UNIX) AND NOT (DEFINED(DARWIN) OR DEFINED(HAIKU))}
+// Sailfish OS uses Wayland only, there is no X11 library at all
+{$IF DEFINED(UNIX) AND NOT (DEFINED(DARWIN) OR DEFINED(HAIKU) OR DEFINED(SAILFISH))}
 {$DEFINE X11}
 {$ENDIF}
 

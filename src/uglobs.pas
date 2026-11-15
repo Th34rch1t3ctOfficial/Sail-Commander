@@ -774,7 +774,7 @@ var
 implementation
 
 uses
-   LCLProc, LCLType, Dialogs, Laz2_XMLRead, LazUTF8, LConvEncoding, uExifWdx,
+  uMobile,  LCLProc, LCLType, Dialogs, Laz2_XMLRead, LazUTF8, LConvEncoding, uExifWdx,
    uGlobsPaths, uLng, uShowMsg, uFileProcs, uOSUtils, uFindFiles, uEarlyConfig,
    dmHigh, uDCUtils, fMultiRename, uDCVersion, uDebug, uFileFunctions,
    uDefaultPlugins, Lua, uKeyboard, DCOSUtils, DCStrUtils, uPixMapManager,
@@ -2223,6 +2223,8 @@ begin
   gShowIconsNew := gShowIcons;
   gIconOverlays := False;
   gIconsSize := 32;
+  // Icons are not scaled automatically, choose a size suitable for a finger
+  if gMobileMode then gIconsSize := MobileIconSize(32);
   gIconsSizeNew := gIconsSize;
   gDiskIconsSize := 16;
   gDiskIconsAlpha := 50;

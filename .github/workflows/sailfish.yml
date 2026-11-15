@@ -1,0 +1,44 @@
+name: build-sailfish
+
+# Builds the Sailfish OS package (RPM) of Sail Commander
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - 'claude/**'
+    paths:
+      - '.github/workflows/sailfish.yml'
+      - 'install/sailfish/**'
+      - 'rpm/**'
+  release:
+    types: [prereleased, released]
+
+concurrency:
+  group: sailfish-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [aarch64, armv7hl]
+    env:
+      RELEASE: 4.6.0.13
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build RPM
+        uses: coderus/github-sfos-build@master
+        with:
+          release: ${{ env.RELEASE }}
+          arch: ${{ matrix.arch }}
+
+      - name: Upload RPM
+        uses: actions/upload-artifact@v4
+        with:
+          name: sailcommander-${{ matrix.arch }}
+          path: RPMS/*.rpm
+          if-no-files-found: error

@@ -34,3 +34,8 @@ lib/
 # Application bundle for Mac OS
 *.app/
 .DS_Store
+
+# Sailfish OS build
+/install/sailfish/toolchain/
+/RPMS/
+/libQt5Pas.so*

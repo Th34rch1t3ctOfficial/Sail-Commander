@@ -950,6 +950,14 @@ type
     property SyncChangeDir: String write FSyncChangeDir;
     property Commands: TMainCommands read FCommands implements IFormCommands;
     property SelectedPanel: TFilePanelSelect read PanelSelected write SetPanelSelected;
+    {en
+       Returns a command of the function key button by its index.
+    }
+    function GetFunctionButtonCommand(AIndex: Integer): String;
+    {en
+       Returns a caption (without shortcut) of the function key button by its index.
+    }
+    function GetFunctionButtonCaption(AIndex: Integer): String;
     property LeftTabs: TFileViewNotebook read nbLeft;
     property RightTabs: TFileViewNotebook read nbRight;
     property MainSplitterPos: Double read FMainSplitterPos write SetMainSplitterPos;
@@ -974,6 +982,7 @@ uses
   uVfsModule, fViewOperations, uMultiListFileSource,
   uFileSourceOperationTypes, uFileSourceCopyOperation, uFileSourceMoveOperation,
   uFileSourceProperty, uFileSourceExecuteOperation, uArchiveFileSource, uThumbFileView,
+  uTouchFileView, uMobile, uMobileLayout,
   uShellExecute, fSymLink, fHardLink, uExceptions, uUniqueInstance, Clipbrd, ShellCtrls,
   uFileSourceOperationOptionsUI, uDebug, uHotkeyManager, uFileSourceUtil, uTempFileSystemFileSource,
   Laz2_XMLRead, DCOSUtils, DCStrUtils, fOptions, fOptionsFrame, fOptionsToolbar, uClassesEx,
@@ -4480,6 +4489,9 @@ procedure TfrmMain.pnlNotebooksResize(Sender: TObject);
 var
   Delta: Integer;
 begin
+  // Only one file panel is visible in mobile mode
+  if gMobileMode then Exit;
+
   if not FResizingFilePanels then
   begin
     FResizingFilePanels := True;
@@ -5251,6 +5263,8 @@ begin
     Result := TBriefFileView.Create(Page, AConfig, ANode, FileViewFlags);
   end else if sType = 'thumbnails' then
     Result := TThumbFileView.Create(Page, AConfig, ANode, FileViewFlags)
+  else if sType = 'touch' then
+    Result := TTouchFileView.Create(Page, AConfig, ANode, FileViewFlags)
   else begin
     DCDebug(rsMsgLogError + 'Invalid file view type "%s"', [sType]);
     Result := TColumnsFileView.Create(Page, AConfig, ANode, FileViewFlags);
@@ -5395,7 +5409,10 @@ begin
       AFileViewFlags := [fvfDelayLoadingFiles]
     else
       AFileViewFlags := [];
-    AFileView := TColumnsFileView.Create(Page, aFileSource, {$IFDEF DARWIN}GetHomeDir{$ELSE}gpExePath{$ENDIF}, AFileViewFlags);
+    if gMobileMode then
+      AFileView := TTouchFileView.Create(Page, aFileSource, GetHomeDir, AFileViewFlags)
+    else
+      AFileView := TColumnsFileView.Create(Page, aFileSource, {$IFDEF DARWIN}GetHomeDir{$ELSE}gpExePath{$ENDIF}, AFileViewFlags);
     Commands.DoSortByFunctions(AFileView, ColSet.GetColumnSet('Default').GetColumnFunctions(0));
     AssignEvents(AFileView);
   end
@@ -5928,6 +5945,8 @@ begin
     ShowTrayIcon(gAlwaysShowTrayIcon);
     UpdateMainTitleBar;
 
+    if gMobileMode then MobileApplyLayout;
+
     FInitializedView := True;
   finally
     EnableAutoSizing;
@@ -6337,10 +6356,27 @@ begin
     FMainSplitterPos:= AValue;
 end;
 
+function TfrmMain.GetFunctionButtonCommand(AIndex: Integer): String;
+begin
+  if (AIndex >= Low(FunctionButtonsCaptions)) and (AIndex <= High(FunctionButtonsCaptions)) then
+    Result:= FunctionButtonsCaptions[AIndex].ACommand
+  else
+    Result:= EmptyStr;
+end;
+
+function TfrmMain.GetFunctionButtonCaption(AIndex: Integer): String;
+begin
+  if (AIndex >= Low(FunctionButtonsCaptions)) and (AIndex <= High(FunctionButtonsCaptions)) then
+    Result:= FunctionButtonsCaptions[AIndex].ACaption
+  else
+    Result:= EmptyStr;
+end;
+
 procedure TfrmMain.SetPanelSelected(AValue: TFilePanelSelect);
 begin
   if PanelSelected = AValue then Exit;
   PanelSelected := AValue;
+  if gMobileMode then MobileUpdatePanels;
   UpdateTreeViewPath;
   UpdateMainTitleBar;
   UpdatePrompt;
@@ -6478,7 +6514,10 @@ begin
     AFileViewFlags := [fvfDelayLoadingFiles]
   else
     AFileViewFlags := [];
-  AFileView := TColumnsFileView.Create(Page, aFileSource, aPath, AFileViewFlags);
+  if gMobileMode then
+    AFileView := TTouchFileView.Create(Page, aFileSource, aPath, AFileViewFlags)
+  else
+    AFileView := TColumnsFileView.Create(Page, aFileSource, aPath, AFileViewFlags);
   AssignEvents(AFileView);
   ANoteBook.PageIndex := ANoteBook.PageCount - 1;
 end;

@@ -38,6 +38,7 @@ uses
   {$ENDIF}
   {$ENDIF}
   uSystem,
+  uMobile,
   Interfaces,
   uMoveConfig,
   uEarlyConfig,
@@ -153,7 +154,9 @@ begin
   Application.BidiMode:= bdLeftToRight;
 
   Application.Title:='Double Commander';
+  InitializeMobileEnvironment;
   Application.Initialize;
+  InitializeMobileStyle;
 
 {$IF DEFINED(DARWIN)}
   GetMacFormatSettings(DefaultFormatSettings);

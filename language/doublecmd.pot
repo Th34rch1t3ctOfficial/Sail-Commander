@@ -11451,6 +11451,42 @@ msgstr ""
 msgid "The operation is not supported"
 msgstr ""
 
+#: ulng.rsmobileplaceandroid
+msgid "Android storage"
+msgstr ""
+
+#: ulng.rsmobileplacebookmarks
+msgid "Bookmarks"
+msgstr ""
+
+#: ulng.rsmobileplacedevice
+msgid "Device memory"
+msgstr ""
+
+#: ulng.rsmobileplacedocuments
+msgid "Documents"
+msgstr ""
+
+#: ulng.rsmobileplacedownloads
+msgid "Downloads"
+msgstr ""
+
+#: ulng.rsmobileplacemusic
+msgid "Music"
+msgstr ""
+
+#: ulng.rsmobileplacepictures
+msgid "Pictures"
+msgstr ""
+
+#: ulng.rsmobileplaceroot
+msgid "File system root"
+msgstr ""
+
+#: ulng.rsmobileplacevideos
+msgid "Videos"
+msgstr ""
+
 #: ulng.rsmsgaccount
 msgid "Account:"
 msgstr ""

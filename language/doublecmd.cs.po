@@ -11531,6 +11531,42 @@ msgstr ""
 msgid "The operation is not supported"
 msgstr ""
 
+#: ulng.rsmobileplaceandroid
+msgid "Android storage"
+msgstr "Úložiště Androidu"
+
+#: ulng.rsmobileplacebookmarks
+msgid "Bookmarks"
+msgstr "Záložky"
+
+#: ulng.rsmobileplacedevice
+msgid "Device memory"
+msgstr "Paměť zařízení"
+
+#: ulng.rsmobileplacedocuments
+msgid "Documents"
+msgstr "Dokumenty"
+
+#: ulng.rsmobileplacedownloads
+msgid "Downloads"
+msgstr "Stažené soubory"
+
+#: ulng.rsmobileplacemusic
+msgid "Music"
+msgstr "Hudba"
+
+#: ulng.rsmobileplacepictures
+msgid "Pictures"
+msgstr "Fotografie"
+
+#: ulng.rsmobileplaceroot
+msgid "File system root"
+msgstr "Kořenová složka souborového systému"
+
+#: ulng.rsmobileplacevideos
+msgid "Videos"
+msgstr "Videa"
+
 #: ulng.rsmsgaccount
 msgid "Account:"
 msgstr "Účet:"

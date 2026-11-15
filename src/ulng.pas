@@ -203,6 +203,15 @@ resourcestring
   rsMsgURL = 'URL:';
   rsMsgLoadingFileList = 'Loading file list...';
   rsMsgNoFiles = 'No files';
+  rsMobilePlaceDevice = 'Device memory';
+  rsMobilePlacePictures = 'Pictures';
+  rsMobilePlaceDownloads = 'Downloads';
+  rsMobilePlaceDocuments = 'Documents';
+  rsMobilePlaceMusic = 'Music';
+  rsMobilePlaceVideos = 'Videos';
+  rsMobilePlaceAndroid = 'Android storage';
+  rsMobilePlaceRoot = 'File system root';
+  rsMobilePlaceBookmarks = 'Bookmarks';
   rsMsgErrSetAttribute = 'Can not set attributes for "%s"';
   rsMsgErrSetDateTime = 'Can not set date/time for "%s"';
   rsMsgErrSetOwnership = 'Can not set owner/group for "%s"';

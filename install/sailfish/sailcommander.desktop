@@ -1,0 +1,14 @@
+[Desktop Entry]
+Type=Application
+Name=Sail Commander
+GenericName=File Manager
+Comment=Double Commander for Sailfish OS
+Comment[cs]=Double Commander pro Sailfish OS
+Icon=sailcommander
+Exec=/usr/bin/sailcommander
+Terminal=false
+Categories=Utility;FileTools;FileManager;
+
+[X-Sailjail]
+# A file manager needs access to the whole file system
+Sandboxing=Disabled

@@ -239,6 +239,7 @@ type
    procedure cm_View(const Params: array of string);
    procedure cm_QuickView(const Params: array of string);
    procedure cm_BriefView(const Params: array of string);
+   procedure cm_TouchView(const Params: array of string);
    procedure cm_LeftBriefView(const Params: array of string);
    procedure cm_RightBriefView(const Params: array of string);
    procedure cm_ColumnsView(const Params: array of string);
@@ -406,7 +407,7 @@ uses fOptionsPluginsBase, fOptionsPluginsDSX, fOptionsPluginsWCX,
      uFileSystemDeleteOperation, uFileSourceExecuteOperation, uSearchResultFileSource,
      uFileSourceOperationMessageBoxesUI, uFileSourceCalcChecksumOperation,
      uFileSourceCalcStatisticsOperation, uFileSource, uFileSourceProperty,
-     uVfsFileSource, uFileSourceUtil, uArchiveFileSourceUtil, uThumbFileView,
+     uVfsFileSource, uFileSourceUtil, uArchiveFileSourceUtil, uThumbFileView, uTouchFileView,
      uTempFileSystemFileSource, uFileProperty, uFileSourceSetFilePropertyOperation,
      uTrash, uFileSystemCopyOperation, fOptionsFileAssoc, fDeleteDlg,
      fViewOperations, uVfsModule, uMultiListFileSource, uExceptions, uFileProcs,
@@ -2269,6 +2270,18 @@ begin
   with frmMain do
   begin
     aFileView:= TBriefFileView.Create(ActiveNotebook.ActivePage, ActiveFrame);
+    ActiveNotebook.ActivePage.FileView:= aFileView;
+    ActiveFrame.SetFocus;
+  end;
+end;
+
+procedure TMainCommands.cm_TouchView(const Params: array of string);
+var
+  aFileView: TFileView;
+begin
+  with frmMain do
+  begin
+    aFileView:= TTouchFileView.Create(ActiveNotebook.ActivePage, ActiveFrame);
     ActiveNotebook.ActivePage.FileView:= aFileView;
     ActiveFrame.SetFocus;
   end;
