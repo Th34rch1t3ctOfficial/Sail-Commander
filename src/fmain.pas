@@ -1013,6 +1013,10 @@ var
   MinimizedWindowButton: Boolean = False;
 {$ENDIF}
 
+const
+  // The biggest size in which all the tool bar icons are available
+  MOBILE_TOOLBAR_ICON = 32;
+
 var
   FunctionButtonsCaptions: array[0..7] of record
                              ACaption: String;
@@ -2447,10 +2451,18 @@ end;
 function TfrmMain.MainToolBarLoadButtonGlyph(ToolItem: TKASToolItem;
   iIconSize: Integer; clBackColor: TColor): TBitmap;
 begin
-  if ToolItem is TKASNormalItem then
-    Result := PixMapManager.LoadBitmapEnhanced(TKASNormalItem(ToolItem).Icon, iIconSize, True, clBackColor, nil)
+  if not (ToolItem is TKASNormalItem) then
+    Result := nil
+  else if gMobileMode and (iIconSize > MOBILE_TOOLBAR_ICON) then
+  begin
+    // Bigger sizes of the tool bar icons are missing or have a different
+    // look, so enlarge the original ones to keep the look of a desktop
+    Result := PixMapManager.LoadBitmapEnhanced(TKASNormalItem(ToolItem).Icon, MOBILE_TOOLBAR_ICON, True, clBackColor, nil);
+    if Assigned(Result) then
+      Result := StretchBitmap(Result, iIconSize, clBackColor, True);
+  end
   else
-    Result := nil;
+    Result := PixMapManager.LoadBitmapEnhanced(TKASNormalItem(ToolItem).Icon, iIconSize, True, clBackColor, nil);
 end;
 
 function TfrmMain.MainToolBarLoadButtonOverlay(ToolItem: TKASToolItem;
