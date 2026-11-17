@@ -95,6 +95,7 @@ type
     procedure ShowMainMenu(const APoint: TPoint);
     procedure UpdateTopPanel;
     procedure UpdateSideBar;
+    procedure FormVisibleChanged(Sender: TObject; Form: TCustomForm);
   end;
 
 var
@@ -239,6 +240,22 @@ begin
   end;
   FSideBar.Width:= MulDiv(MobilePx(32), frmMain.PixelsPerInch, Screen.PixelsPerInch);
   FSideBar.Invalidate;
+end;
+
+procedure TLayoutHelper.FormVisibleChanged(Sender: TObject; Form: TCustomForm);
+begin
+  // Every window is a separate application page on a phone,
+  // so dialogs and tool windows occupy the whole screen too
+  if not (gMobileMode and Assigned(Form) and Form.Visible) then Exit;
+  if (Form = frmMain) or (Form is THintWindow) or (Form.BorderStyle = bsNone) or
+     (Form.FormStyle in [fsSplash, fsStayOnTop, fsSystemStayOnTop]) then Exit;
+  if (Form.Left = 0) and (Form.Top = 0) and
+     (Form.Width = Screen.Width) and (Form.Height = Screen.Height) then Exit;
+
+  Form.AutoSize:= False;
+  Form.Constraints.MaxWidth:= 0;
+  Form.Constraints.MaxHeight:= 0;
+  Form.SetBounds(0, 0, Screen.Width, Screen.Height);
 end;
 
 destructor TLayoutHelper.Destroy;
@@ -509,8 +526,11 @@ end;
 
 initialization
   LayoutHelper:= TLayoutHelper.Create;
+  Screen.AddHandlerFormVisibleChanged(@LayoutHelper.FormVisibleChanged);
 
 finalization
+  if Assigned(Screen) then
+    Screen.RemoveHandlerFormVisibleChanged(@LayoutHelper.FormVisibleChanged);
   FreeAndNil(LayoutHelper);
 
 end.

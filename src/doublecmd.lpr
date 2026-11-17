@@ -154,7 +154,6 @@ begin
   Application.BidiMode:= bdLeftToRight;
 
   Application.Title:='Double Commander';
-  InitializeMobileEnvironment;
   Application.Initialize;
   InitializeMobileStyle;
 
@@ -204,7 +203,8 @@ begin
 
   ProcessCommandLineParams; // before load paths
 
-  if (gSplashForm) and (not CommandLineParams.NoSplash) then
+  // A splash screen would be a separate application window on a phone
+  if (gSplashForm) and (not CommandLineParams.NoSplash) and (not gMobileMode) then
   begin
     // Let's show the starting slash screen to confirm user application has been started
     Application.CreateForm(TfrmStartingSplash, frmStartingSplash);

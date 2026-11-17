@@ -383,7 +383,8 @@ implementation
 uses
   GraphType, LCLIntf, LCLType, LCLProc, Forms, uGlobsPaths, WcxPlugin, uClassesEx,
   DCStrUtils, uDCUtils, uFileSystemFileSource, uReSample, uDebug, uFileSourceProperty,
-  IntfGraphics, DCOSUtils, DCClassesUtf8, LazUTF8, uGraphics, uHash, uSysFolders
+  IntfGraphics, DCOSUtils, DCClassesUtf8, LazUTF8, uGraphics, uHash, uSysFolders,
+  uMobile
   {$IFDEF MSWINDOWS}
     , ActiveX, CommCtrl, ShellAPI, Windows, DCFileAttributes, uBitmap, uGdiPlus,
       DCConvertEncoding, uShlObjAdditional, uShellFolder, uMyWindows,
@@ -415,7 +416,11 @@ begin
     Result:= MulDiv(ASize, Screen.PixelsPerInch, APixelsPerInch);
   end;
 {$ELSE}
-  Result:= ASize;
+  // Sizes saved by another screen density (or before the scaling worked)
+  if gMobileMode and (APixelsPerInch > 0) and (APixelsPerInch <> Screen.PixelsPerInch) then
+    Result:= MulDiv(ASize, Screen.PixelsPerInch, APixelsPerInch)
+  else
+    Result:= ASize;
 {$ENDIF}
 end;
 

@@ -92,6 +92,53 @@ begin
     setenv(PAnsiChar(AName), PAnsiChar(AValue), 1);
 end;
 
+procedure SetEnvironment(const AName, AValue: String);
+begin
+  setenv(PAnsiChar(AName), PAnsiChar(AValue), 1);
+end;
+
+{en
+   Reads a display mode of a DRM connector ("1080x2400"), returns smaller side.
+}
+function GetDrmScreenWidth: Integer;
+var
+  S: String;
+  P: Integer;
+  AModes: TStringList;
+  ASearch: TSearchRec;
+begin
+  Result:= 0;
+  if FindFirst('/sys/class/drm/card*-*', faAnyFile, ASearch) = 0 then
+  try
+    repeat
+      if FileExists('/sys/class/drm/' + ASearch.Name + '/modes') then
+      try
+        AModes:= TStringList.Create;
+        try
+          AModes.LoadFromFile('/sys/class/drm/' + ASearch.Name + '/modes');
+          if AModes.Count > 0 then
+          begin
+            S:= Trim(AModes[0]);
+            P:= Pos('x', S);
+            if P > 0 then
+            begin
+              Result:= Min(StrToIntDef(Copy(S, 1, P - 1), 0),
+                           StrToIntDef(Copy(S, P + 1, MaxInt), 0));
+              if Result > 0 then Exit;
+            end;
+          end;
+        finally
+          AModes.Free;
+        end;
+      except
+        Result:= 0;
+      end;
+    until FindNext(ASearch) <> 0;
+  finally
+    FindClose(ASearch);
+  end;
+end;
+
 {en
    Reads a framebuffer size in device pixels, returns smaller side.
 }
@@ -161,12 +208,17 @@ begin
 end;
 
 procedure InitializeMobileEnvironment;
+const
+  FInitialized: Boolean = False;
 var
   AValue: String;
 {$IF DEFINED(UNIX)}
-  AWidth: Integer;
+  ADpi, AWidth: Integer;
 {$ENDIF}
 begin
+  if FInitialized then Exit;
+  FInitialized:= True;
+
   AValue:= GetEnvironmentVariable('DC_MOBILE');
   if AValue = '1' then
     gMobileMode:= True
@@ -184,11 +236,18 @@ begin
     SetEnvironmentDefault('QT_QPA_PLATFORM', 'wayland');
     SetEnvironmentDefault('QT_WAYLAND_DISABLE_WINDOWDECORATION', '1');
     // Qt Widgets does not scale by itself there, so report a logical
-    // DPI which corresponds to the screen density, LCL will do the rest
-    AWidth:= GetFrameBufferWidth;
-    if AWidth <= 0 then AWidth:= 1080;
-    SetEnvironmentDefault('QT_WAYLAND_FORCE_DPI',
-                          IntToStr(Max(96, (AWidth * 96) div PHONE_WIDTH_DP)));
+    // DPI which corresponds to the screen density, LCL will do the rest.
+    // The session sets its own value for Silica applications which
+    // are scaled differently, so it is always replaced.
+    ADpi:= StrToIntDef(GetEnvironmentVariable('DC_MOBILE_DPI'), 0);
+    if ADpi <= 0 then
+    begin
+      AWidth:= GetDrmScreenWidth;
+      if AWidth <= 0 then AWidth:= GetFrameBufferWidth;
+      if AWidth <= 0 then AWidth:= 1080;
+      ADpi:= Max(96, (AWidth * 96) div PHONE_WIDTH_DP);
+    end;
+    SetEnvironment('QT_WAYLAND_FORCE_DPI', IntToStr(ADpi));
   end;
 {$ENDIF}
 end;
@@ -312,5 +371,10 @@ begin
   ApplyQtStyle;
 {$ENDIF}
 end;
+
+initialization
+  // The environment must be ready before the widgetset creates
+  // the Qt application object (in the initialization of Interfaces)
+  InitializeMobileEnvironment;
 
 end.

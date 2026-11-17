@@ -2237,7 +2237,11 @@ begin
   gToolIconsSize := {$IFnDEF DARWIN}24{$ELSE}16{$ENDIF};  // Theme icons lack precision on Retina displays
   gIconsExclude := False;
   gIconsExcludeDirs := EmptyStr;
-  gPixelsPerInch := 96;
+  // Default sizes in mobile mode are already scaled for the screen
+  if gMobileMode then
+    gPixelsPerInch := Screen.PixelsPerInch
+  else
+    gPixelsPerInch := 96;
   gCustomIcons := [];
   gIconsInMenus := False;
   gIconsInMenusSize := 16;

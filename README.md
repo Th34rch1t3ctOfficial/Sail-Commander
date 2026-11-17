@@ -16,7 +16,8 @@ a *mobile mode* which is turned on automatically on Sailfish OS:
 - dark and light appearance which follows the Sailfish OS ambience
 
 The mobile mode can be tried on a desktop too: `DC_MOBILE=1 ./doublecmd`
-(`DC_MOBILE_THEME=light` or `dark` chooses the appearance). The touch file view is
+(`DC_MOBILE_THEME=light` or `dark` chooses the appearance, `DC_MOBILE_DPI=288`
+overrides the screen density which is detected automatically on Sailfish OS). The touch file view is
 also available as the internal command `cm_TouchView`.
 
 ## Building for Sailfish OS

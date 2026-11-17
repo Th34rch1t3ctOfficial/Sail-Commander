@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Sail Commander icon: letters in the style of the Double Commander icon on a green circle -->
+<!-- Sail Commander icon: letters in the style of the Double Commander icon on a green leaf (the Sailfish OS icon shape) -->
 <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="256px" height="256px" viewBox="0 0 256 256">
   <defs>
     <linearGradient id="background" gradientUnits="userSpaceOnUse" x1="216" y1="40" x2="40" y2="216">
@@ -12,8 +12,8 @@
       <stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
     </radialGradient>
   </defs>
-  <circle cx="128" cy="128" r="124" fill="url(#background)"/>
-  <circle cx="128" cy="128" r="124" fill="url(#light)"/>
+  <path d="M4,18Q4,4 18,4H122A130,130 0 0 1 252,134V238Q252,252 238,252H134A130,130 0 0 1 4,122Z" fill="url(#background)"/>
+  <path d="M4,18Q4,4 18,4H122A130,130 0 0 1 252,134V238Q252,252 238,252H134A130,130 0 0 1 4,122Z" fill="url(#light)"/>
   <g fill="none" stroke="#FFFFFF" stroke-width="24" stroke-linecap="butt" stroke-linejoin="miter">
     <!-- S -->
     <path d="M121,80H85A24,24 0 0 0 85,128A24,24 0 0 1 85,176H49"/>
