@@ -841,7 +841,9 @@ end;
     Result:= False;
     with MountEntry^ do
     begin
-       if DesktopEnv = DE_FLATPAK then
+       // Sailfish OS has hundreds of mounts of the Android support,
+       // show only the memory cards and other removable media there
+       if (DesktopEnv = DE_FLATPAK) {$IFDEF SAILFISH}or True{$ENDIF} then
        begin
          if (not StrBegins(mnt_dir, '/mnt/')) and
             (not StrBegins(mnt_dir, '/media/')) and

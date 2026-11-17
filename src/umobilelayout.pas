@@ -41,7 +41,7 @@ implementation
 
 uses
   Controls, Graphics, Buttons, Forms, Menus, ExtCtrls, Math, LCLType, uGlobs, uMobile, uFilePanelSelect,
-  uPixMapManager, KASToolBar, KASToolItems, uKASToolItemsExtended, fMain
+  uPixMapManager, KASToolBar, KASToolItems, uKASToolItemsExtended, uMobileUI, fMain
 {$IF DEFINED(LCLQT5)}
   , qtwidgets
 {$ENDIF}
@@ -81,18 +81,16 @@ type
 
   TLayoutHelper = class
   private
-    FMenu: TPopupMenu;
+    FTopSpace: TPanel;
     FTopPanel: TPanel;
     FMenuButton: TSpeedButton;
     FSideBar: TMobileSideBar;
-    procedure CloneMenuItems(ASource, ATarget: TMenuItem);
     procedure MenuButtonClick(Sender: TObject);
+    procedure MarkButtonClick(Sender: TObject);
   public
     FMenuHidden: Boolean;
     procedure HideMainMenu(Data: PtrInt);
-    destructor Destroy; override;
     procedure KeysResize(Sender: TObject);
-    procedure ShowMainMenu(const APoint: TPoint);
     procedure UpdateTopPanel;
     procedure UpdateSideBar;
     procedure FormVisibleChanged(Sender: TObject; Form: TCustomForm);
@@ -103,9 +101,11 @@ var
 
 procedure TLayoutHelper.KeysResize(Sender: TObject);
 begin
+  // The height in the device pixels is stored in the Tag,
+  // the form scaling should not change it
   with TControl(Sender) do
   begin
-    if Height <> MobilePx(KEYS_HEIGHT) then Height:= MobilePx(KEYS_HEIGHT);
+    if Height <> Tag then Height:= Tag;
   end;
 end;
 
@@ -258,50 +258,6 @@ begin
   Form.SetBounds(0, 0, Screen.Width, Screen.Height);
 end;
 
-destructor TLayoutHelper.Destroy;
-begin
-  FreeAndNil(FMenu);
-  inherited Destroy;
-end;
-
-procedure TLayoutHelper.CloneMenuItems(ASource, ATarget: TMenuItem);
-var
-  I: Integer;
-  AItem, ANewItem: TMenuItem;
-begin
-  for I:= 0 to ASource.Count - 1 do
-  begin
-    AItem:= ASource.Items[I];
-    if not AItem.Visible then Continue;
-
-    ANewItem:= TMenuItem.Create(FMenu);
-    if Assigned(AItem.Action) then
-      ANewItem.Action:= AItem.Action
-    else begin
-      ANewItem.Caption:= AItem.Caption;
-      ANewItem.Enabled:= AItem.Enabled;
-      ANewItem.RadioItem:= AItem.RadioItem;
-      ANewItem.Checked:= AItem.Checked;
-      ANewItem.Hint:= AItem.Hint;
-      ANewItem.Tag:= AItem.Tag;
-      // A submenu is opened by the menu itself
-      if AItem.Count = 0 then ANewItem.OnClick:= AItem.OnClick;
-    end;
-    ATarget.Add(ANewItem);
-
-    if AItem.Count > 0 then CloneMenuItems(AItem, ANewItem);
-  end;
-end;
-
-procedure TLayoutHelper.ShowMainMenu(const APoint: TPoint);
-begin
-  // The main menu changes at runtime, so mirror it each time
-  FreeAndNil(FMenu);
-  FMenu:= TPopupMenu.Create(nil);
-  CloneMenuItems(frmMain.mnuMain.Items, FMenu.Items);
-  FMenu.PopUp(APoint.X, APoint.Y);
-end;
-
 procedure TLayoutHelper.HideMainMenu(Data: PtrInt);
 begin
   if not Assigned(frmMain) then Exit;
@@ -328,15 +284,24 @@ procedure TLayoutHelper.MenuButtonClick(Sender: TObject);
 begin
   // Show the menu below the button, aligned to the right edge of the screen
   with FMenuButton do
-    ShowMainMenu(ClientToScreen(Classes.Point(0, Height)));
+    MobileShowMainMenu(ClientToScreen(Classes.Point(Width, Height)));
+end;
+
+procedure TLayoutHelper.MarkButtonClick(Sender: TObject);
+begin
+  MobileShowMarkDialog;
 end;
 
 {en
-   Removes tool bar buttons which are in the file panel header already.
+   Removes tool bar buttons which are not wanted in mobile mode: refresh is in
+   the file panel header, three selection buttons are replaced by one which
+   opens the mark files dialog, terminal, multi-rename, synchronize
+   directories and copy names to clipboard are not useful on a phone.
 }
-procedure RemoveDuplicateButtons;
+procedure UpdateToolBarButtons;
 var
   I: Integer;
+  ACommand: String;
   AItem: TKASToolItem;
 begin
   with frmMain.MainToolBar do
@@ -344,11 +309,15 @@ begin
     for I:= ButtonCount - 1 downto 0 do
     begin
       AItem:= Buttons[I].ToolItem;
-      if (AItem is TKASCommandItem) and
-         SameText(TKASCommandItem(AItem).Command, 'cm_Refresh') then
-      begin
-        RemoveButton(I);
-      end;
+      if not (AItem is TKASCommandItem) then Continue;
+      ACommand:= TKASCommandItem(AItem).Command;
+      if SameText(ACommand, 'cm_Refresh') or SameText(ACommand, 'cm_MarkPlus') or
+         SameText(ACommand, 'cm_MarkMinus') or SameText(ACommand, 'cm_RunTerm') or
+         SameText(ACommand, 'cm_MultiRename') or SameText(ACommand, 'cm_SyncDirs') or
+         SameText(ACommand, 'cm_CopyFullNamesToClip') then
+        RemoveButton(I)
+      else if SameText(ACommand, 'cm_MarkInvert') then
+        Buttons[I].OnClick:= @LayoutHelper.MarkButtonClick;
     end;
   end;
 end;
@@ -360,6 +329,20 @@ var
 begin
   with frmMain do
   begin
+    if not Assigned(FTopSpace) then
+    begin
+      // Space for the display cutout (notch)
+      FTopSpace:= TPanel.Create(frmMain);
+      FTopSpace.Parent:= frmMain;
+      FTopSpace.Align:= alTop;
+      FTopSpace.BevelOuter:= bvNone;
+      FTopSpace.Caption:= EmptyStr;
+      FTopSpace.OnResize:= @KeysResize;
+    end;
+    FTopSpace.Tag:= MobileTopMargin;
+    FTopSpace.Height:= FTopSpace.Tag;
+    FTopSpace.Visible:= FTopSpace.Tag > 0;
+
     if not Assigned(FTopPanel) then
     begin
       // The tool bar and the main menu button (three dots) after it
@@ -413,9 +396,10 @@ begin
     FMenuButton.Width:= gToolBarButtonSize;
     FMenuButton.Height:= gToolBarButtonSize;
 
-    RemoveDuplicateButtons;
+    UpdateToolBarButtons;
     MainToolBar.Visible:= True;
     FTopPanel.Top:= -1;
+    FTopSpace.Top:= -2;
   end;
 end;
 
@@ -504,7 +488,8 @@ begin
     // The form is scaled when it is shown for the first time,
     // so keep the height which is already in the device pixels
     pnlKeys.OnResize:= @LayoutHelper.KeysResize;
-    pnlKeys.Height:= MobilePx(KEYS_HEIGHT);
+    pnlKeys.Tag:= MobilePx(KEYS_HEIGHT);
+    pnlKeys.Height:= pnlKeys.Tag;
     pnlKeys.Top:= Height * 2;
     pnlKeys.Visible:= True;
   end;
@@ -541,6 +526,7 @@ begin
     RightTabs.ShowTabs:= (RightTabs.PageCount > 1);
   end;
 
+  MobileHookPopupMenus;
   LayoutHelper.UpdateTopPanel;
   LayoutHelper.UpdateSideBar;
   UpdateFunctionButtons;

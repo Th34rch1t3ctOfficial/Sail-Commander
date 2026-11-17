@@ -27,7 +27,7 @@ procedure SaveEarlyConfig;
 implementation
 
 uses
-  DCOSUtils, DCStrUtils, DCClassesUtf8, uSysFolders, uGlobsPaths;
+  DCOSUtils, DCStrUtils, DCClassesUtf8, uSysFolders, uGlobsPaths, uMobile;
 
 var
   AConfig: String;
@@ -61,6 +61,7 @@ begin
     try
       LoadFromFile(AConfig);
       gSplashForm:= StrToBoolDef(Values['SplashForm'], gSplashForm);
+      gMobileTheme:= StrToIntDef(Values['MobileTheme'], gMobileTheme);
 {$IFDEF DARKWIN}
       gAppMode:= StrToIntDef(Values['DarkMode'], gAppMode);
 {$ENDIF}
@@ -82,6 +83,7 @@ begin
   with TStringListEx.Create do
   try
     Add('SplashForm' + NameValueSeparator + BoolToStr(gSplashForm));
+    AddPair('MobileTheme', IntToStr(gMobileTheme));
 {$IFDEF DARKWIN}
     AddPair('DarkMode', IntToStr(gAppMode));
 {$ENDIF}

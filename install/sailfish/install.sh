@@ -32,6 +32,9 @@ cp -r default language highlighters "$DC_INSTALL_DIR/"
 
 install -d "$DC_INSTALL_DIR/pixmaps"
 cp -r pixmaps/dctheme pixmaps/mainicon "$DC_INSTALL_DIR/pixmaps/"
+# The icon cache is used only when it is newer than the theme directory,
+# otherwise all the icons are searched at every start, which is slow
+touch "$DC_INSTALL_DIR/pixmaps/dctheme/icon-theme.cache"
 
 install -d "$DC_INSTALL_DIR/doc"
 install -m 644 doc/*.txt "$DC_INSTALL_DIR/doc/"

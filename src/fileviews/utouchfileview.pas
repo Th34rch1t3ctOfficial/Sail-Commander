@@ -37,6 +37,8 @@ type
 
   TPlaceKind = (pkFolder, pkBookmarks);
 
+  TMarkMode = (mmSelect, mmUnselect, mmInvert);
+
   {en
      Item of the places list which is shown above the root directory
   }
@@ -167,6 +169,7 @@ type
     procedure UpdateFreeSpace;
     // Finger actions
     procedure TapFile(AIndex: PtrInt; AtIcon: Boolean);
+    function IsTextFile(AFile: TDisplayFile): Boolean;
     procedure LongPressFile(AIndex: PtrInt; const APoint: TPoint);
     procedure HeaderClick(AZone: THeaderZone);
   protected
@@ -194,6 +197,10 @@ type
     destructor Destroy; override;
     function Clone(NewParent: TWinControl): TTouchFileView; override;
     procedure ChangePathToParent(AllowChangingFileSource: Boolean); override;
+    {en
+       Marks files and/or directories which match the mask.
+    }
+    procedure MarkByMask(const AMask: String; AFiles, AFolders: Boolean; AMode: TMarkMode);
     procedure SaveConfiguration(AConfig: TXmlConfig; ANode: TXmlNode; ASaveHistory: Boolean); override;
     procedure UpdateColor; override;
   end;
@@ -204,12 +211,16 @@ uses
   LCLIntf, LCLProc, Forms, Math, StdCtrls,
   DCOSUtils, DCStrUtils, uGlobs, uLng, uPixmapManager, uDCUtils, uFileFunctions,
   uFileSourceProperty, uFileViewWithGrid, uOrderedFileView, uMobile, uDrive,
-  uOSUtils, uSysFolders, uKeyboard, fMain;
+  uOSUtils, uSysFolders, uKeyboard, uHotDir, uMasks, uMobileUI, fMain
+{$IF DEFINED(UNIX)}
+  , uMimeType
+{$ENDIF}
+  ;
 
 const
   // Names of the Double Commander theme icons
   HEADER_ICONS: array[THeaderZone] of String =
-    ('', '', '', 'go-up', 'cm_changedirtohome', 'cm_refresh');
+    ('', '', '', 'go-up', 'cm_visithomepage', 'cm_refresh');
 
   KINETIC_INTERVAL = 15;    // milliseconds
   KINETIC_FRICTION = 0.0025; // velocity loss per millisecond
@@ -977,6 +988,7 @@ var
 
 var
   I: Integer;
+  AValue: String;
   ADrive: PDrive;
 begin
   ClearPlaces;
@@ -1016,9 +1028,25 @@ begin
   Add(rsMobilePlaceRoot, PathDelim, pkFolder,
       PixMapManager.GetThemeIcon('drive-harddisk', gIconsSize), True);
 
-  // Directory hotlist
+  // Directories from the hotlist (favorites)
+  if Assigned(gDirectoryHotlist) then
+  begin
+    for I:= 0 to gDirectoryHotlist.Count - 1 do
+    begin
+      with gDirectoryHotlist.HotDir[I] do
+      begin
+        if (Dispatcher = hd_CHANGEPATH) and (Length(HotDirPath) > 0) then
+        begin
+          AValue:= ExcludeBackPathDelimiter(mbExpandFileName(HotDirPath));
+          Add(HotDirName, AValue, pkFolder,
+              PixMapManager.GetThemeIcon('cm_dirhotlist', gIconsSize), False);
+        end;
+      end;
+    end;
+  end;
+  // Editing of the favorites
   Add(rsMobilePlaceBookmarks, EmptyStr, pkBookmarks,
-      PixMapManager.GetThemeIcon('cm_dirhotlist', gIconsSize), False);
+      PixMapManager.GetThemeIcon('cm_configdirhotlist', gIconsSize), False);
 end;
 
 procedure TTouchFileView.ShowPlaces;
@@ -1064,7 +1092,7 @@ begin
 
   case FPlaces[AIndex].Kind of
     pkBookmarks:
-      frmMain.Commands.cm_DirHotList([]);
+      frmMain.Commands.cm_ConfigDirHotList([]);
     pkFolder:
       begin
         APath:= IncludeTrailingPathDelimiter(FPlaces[AIndex].Path);
@@ -1222,9 +1250,63 @@ begin
       DoSelectionChanged(AIndex);
     end;
   end
+  else if IsTextFile(AFile) then
+  begin
+    // Text files are opened by the editor of Double Commander
+    frmMain.Commands.cm_Edit([]);
+  end
   else begin
     ChooseFile(AFile);
   end;
+end;
+
+function TTouchFileView.IsTextFile(AFile: TDisplayFile): Boolean;
+const
+  TEXT_EXTENSIONS = ';txt;log;ini;conf;cfg;md;json;xml;csv;tsv;sh;py;pl;pas;pp;inc;lpr;' +
+                    'c;h;cpp;hpp;js;ts;css;qml;yml;yaml;toml;desktop;spec;srt;nfo;lua;' +
+                    'm3u;m3u8;sql;diff;patch;rst;tex;properties;';
+var
+  AMime: String;
+begin
+  Result:= False;
+  with AFile.FSFile do
+  begin
+    if IsDirectory or IsLinkToDirectory then Exit;
+    if not (fspDirectAccess in FileSource.Properties) then Exit;
+    if Pos(';' + LowerCase(Extension) + ';', TEXT_EXTENSIONS) > 0 then Exit(True);
+{$IF DEFINED(UNIX)}
+    try
+      AMime:= GetFileMimeType(FullPath);
+      Result:= StrBegins(AMime, 'text/');
+    except
+      Result:= False;
+    end;
+{$ENDIF}
+  end;
+end;
+
+procedure TTouchFileView.MarkByMask(const AMask: String; AFiles, AFolders: Boolean; AMode: TMarkMode);
+var
+  I: Integer;
+  AFile: TDisplayFile;
+  AFolder: Boolean;
+begin
+  if FPlacesMode or IsLoadingFileList then Exit;
+  for I:= 0 to FFiles.Count - 1 do
+  begin
+    AFile:= FFiles[I];
+    if not IsItemValid(AFile) then Continue;
+    AFolder:= AFile.FSFile.IsDirectory or AFile.FSFile.IsLinkToDirectory;
+    if AFolder and not AFolders then Continue;
+    if (not AFolder) and not AFiles then Continue;
+    if not MatchesMaskList(AFile.FSFile.Name, AMask, ';,') then Continue;
+    case AMode of
+      mmSelect:   MarkFile(AFile, True, False);
+      mmUnselect: MarkFile(AFile, False, False);
+      mmInvert:   InvertFileSelection(AFile, False);
+    end;
+  end;
+  DoSelectionChanged;
 end;
 
 procedure TTouchFileView.LongPressFile(AIndex: PtrInt; const APoint: TPoint);
@@ -1238,6 +1320,7 @@ begin
   if not ABackground then SetActiveFile(AIndex, False);
 
   P:= FList.ClientToScreen(APoint);
+  MobileHookPopupMenus;
   frmMain.Commands.DoContextMenu(Self, P.X, P.Y, ABackground);
 end;
 
@@ -1257,7 +1340,8 @@ begin
     hzParent:
       ChangePathToParent(True);
     hzHome:
-      frmMain.Commands.cm_ChangeDirToHome([]);
+      // Device memory, memory cards and favorites
+      ShowPlaces;
     hzRefresh:
       frmMain.Commands.cm_Refresh([]);
   end;

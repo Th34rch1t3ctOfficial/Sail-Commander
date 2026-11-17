@@ -7,12 +7,18 @@ a *mobile mode* which is turned on automatically on Sailfish OS:
 
 - one file panel at a time with a side bar at the side of the opposite panel: an arrow
   switches to that panel, an equals sign shows the current directory in it
-- touch file view: two-line items, kinetic scrolling, tap opens a file or directory,
-  tap on an icon selects it, long press shows the context menu
+- touch file view: two-line items, kinetic scrolling, tap opens a file or directory
+  (text files in the editor of Double Commander), tap on an icon selects it,
+  long press shows the context menu
+- popup menus are drawn inside the window (popup windows do not work on Sailfish OS),
+  the three dots button shows a short menu (exit, settings, dark/light, help) and
+  the settings page with the most useful options
+- the selection button opens a dialog to mark/unmark files by a mask
 - the tool bar at the top with the main menu behind the three dots button,
   the main file commands (Edit, Copy, Move, Directory, Delete) at the bottom
 - a list of places (device memory, memory cards, user directories, file system root,
-  bookmarks) above the root directory instead of the drive bar
+  favorites) above the root directory and under the home button instead of the drive bar
+- space for the display cutout at the top (`DC_MOBILE_TOP_MARGIN` in dp overrides it)
 - dark and light appearance which follows the Sailfish OS ambience
 
 The mobile mode can be tried on a desktop too: `DC_MOBILE=1 ./doublecmd`

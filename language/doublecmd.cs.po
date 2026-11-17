@@ -11536,8 +11536,144 @@ msgid "Android storage"
 msgstr "Úložiště Androidu"
 
 #: ulng.rsmobileplacebookmarks
-msgid "Bookmarks"
-msgstr "Záložky"
+msgid "Edit bookmarks"
+msgstr "Upravit záložky"
+
+#: ulng.rsmobilemenuexit
+msgid "Exit"
+msgstr "Konec"
+
+#: ulng.rsmobilemenusettings
+msgid "Settings..."
+msgstr "Nastavení..."
+
+#: ulng.rsmobilemenudarktolight
+msgid "Dark -> Light"
+msgstr "Tmavé -> Světlé"
+
+#: ulng.rsmobilemenulighttodark
+msgid "Light -> Dark"
+msgstr "Světlé -> Tmavé"
+
+#: ulng.rsmobilemenuhelp
+msgid "Help (html)"
+msgstr "Nápověda (html)"
+
+#: ulng.rsmobilesettings
+msgid "Settings"
+msgstr "Nastavení"
+
+#: ulng.rsmobilesettingsabout
+msgid "About"
+msgstr "O programu"
+
+#: ulng.rsmobilesettingsaboutitem
+msgid "About/Version information"
+msgstr "O programu/Informace o verzi"
+
+#: ulng.rsmobilesettingsgeneral
+msgid "General settings"
+msgstr "Obecné nastavení"
+
+#: ulng.rsmobilesettingslanguage
+msgid "Language"
+msgstr "Jazyk (Language)"
+
+#: ulng.rsmobilesettingsdatetime
+msgid "Date and time format"
+msgstr "Formát data a času"
+
+#: ulng.rsmobilesettingshidden
+msgid "Show hidden files/folders"
+msgstr "Zobrazit skryté soubory/složky"
+
+#: ulng.rsmobilesettingshiddenhint
+msgid "Names starting with a dot."
+msgstr "Názvy začínající tečkou."
+
+#: ulng.rsmobilesettingsignore
+msgid "Hide files (ignore list)"
+msgstr "Skrýt soubory (ignorovat)"
+
+#: ulng.rsmobilesettingsignorehint
+msgid "Ignore list: hide files/folders by name"
+msgstr "Seznam ignorovaných: skrýt soubory/složky podle názvu"
+
+#: ulng.rsmobilesettingsfonts
+msgid "Fonts and colors"
+msgstr "Písma a barvy"
+
+#: ulng.rsmobilesettingsfontshint
+msgid "Font and color settings"
+msgstr "Nastavení vlastností písma a barev"
+
+#: ulng.rsmobilesettingsassoc
+msgid "Internal associations"
+msgstr "Interní asociace"
+
+#: ulng.rsmobilesettingsassochint
+msgid "Override associations (to open a file), used only by Sail Commander"
+msgstr "Přepsat asociace (pro otevření souboru) – použijí se jen v Sail Commanderu"
+
+#: ulng.rsmobilesettingsplugins
+msgid "Plugins"
+msgstr "Pluginy"
+
+#: ulng.rsmobilesettingspluginshint
+msgid "Add and configure plugins"
+msgstr "Přidat a nastavit pluginy"
+
+#: ulng.rsmobilesettingslog
+msgid "Create a log file"
+msgstr "Vytvořit soubor protokolu"
+
+#: ulng.rsmobilesettingsmore
+msgid "More"
+msgstr "Další"
+
+#: ulng.rsmobilesettingsallcommands
+msgid "All commands"
+msgstr "Všechny příkazy"
+
+#: ulng.rsmobilesettingsallcommandshint
+msgid "Main menu of Double Commander"
+msgstr "Hlavní nabídka Double Commanderu"
+
+#: ulng.rsmobilesettingsalloptions
+msgid "All settings"
+msgstr "Všechna nastavení"
+
+#: ulng.rsmobilesettingsalloptionshint
+msgid "Options of Double Commander"
+msgstr "Nastavení Double Commanderu"
+
+#: ulng.rsmobilemarktitle
+msgid "Mark/Unmark files:"
+msgstr "Označit/Odznačit soubory:"
+
+#: ulng.rsmobilemarkhint
+msgid "Tip: tap the icon of a file/folder to select it manually!"
+msgstr "Rada: Klepněte na ikonu souboru/složky pro ruční výběr!"
+
+#: ulng.rsmobilemarkfiles
+msgid "Files"
+msgstr "Soubory"
+
+#: ulng.rsmobilemarkfolders
+msgid "Folders"
+msgstr "Složky"
+
+#: ulng.rsmobilemarkselect
+msgid "Select"
+msgstr "Vybrat"
+
+#: ulng.rsmobilemarkunselect
+msgid "Unselect"
+msgstr "Odebrat z výběru"
+
+#: ulng.rsmobilemarkinvert
+msgid "Invert selection"
+msgstr "Invertovat výběr"
 
 #: ulng.rsmobileplacedevice
 msgid "Device memory"

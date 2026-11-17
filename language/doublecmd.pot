@@ -11456,7 +11456,143 @@ msgid "Android storage"
 msgstr ""
 
 #: ulng.rsmobileplacebookmarks
-msgid "Bookmarks"
+msgid "Edit bookmarks"
+msgstr ""
+
+#: ulng.rsmobilemenuexit
+msgid "Exit"
+msgstr ""
+
+#: ulng.rsmobilemenusettings
+msgid "Settings..."
+msgstr ""
+
+#: ulng.rsmobilemenudarktolight
+msgid "Dark -> Light"
+msgstr ""
+
+#: ulng.rsmobilemenulighttodark
+msgid "Light -> Dark"
+msgstr ""
+
+#: ulng.rsmobilemenuhelp
+msgid "Help (html)"
+msgstr ""
+
+#: ulng.rsmobilesettings
+msgid "Settings"
+msgstr ""
+
+#: ulng.rsmobilesettingsabout
+msgid "About"
+msgstr ""
+
+#: ulng.rsmobilesettingsaboutitem
+msgid "About/Version information"
+msgstr ""
+
+#: ulng.rsmobilesettingsgeneral
+msgid "General settings"
+msgstr ""
+
+#: ulng.rsmobilesettingslanguage
+msgid "Language"
+msgstr ""
+
+#: ulng.rsmobilesettingsdatetime
+msgid "Date and time format"
+msgstr ""
+
+#: ulng.rsmobilesettingshidden
+msgid "Show hidden files/folders"
+msgstr ""
+
+#: ulng.rsmobilesettingshiddenhint
+msgid "Names starting with a dot."
+msgstr ""
+
+#: ulng.rsmobilesettingsignore
+msgid "Hide files (ignore list)"
+msgstr ""
+
+#: ulng.rsmobilesettingsignorehint
+msgid "Ignore list: hide files/folders by name"
+msgstr ""
+
+#: ulng.rsmobilesettingsfonts
+msgid "Fonts and colors"
+msgstr ""
+
+#: ulng.rsmobilesettingsfontshint
+msgid "Font and color settings"
+msgstr ""
+
+#: ulng.rsmobilesettingsassoc
+msgid "Internal associations"
+msgstr ""
+
+#: ulng.rsmobilesettingsassochint
+msgid "Override associations (to open a file), used only by Sail Commander"
+msgstr ""
+
+#: ulng.rsmobilesettingsplugins
+msgid "Plugins"
+msgstr ""
+
+#: ulng.rsmobilesettingspluginshint
+msgid "Add and configure plugins"
+msgstr ""
+
+#: ulng.rsmobilesettingslog
+msgid "Create a log file"
+msgstr ""
+
+#: ulng.rsmobilesettingsmore
+msgid "More"
+msgstr ""
+
+#: ulng.rsmobilesettingsallcommands
+msgid "All commands"
+msgstr ""
+
+#: ulng.rsmobilesettingsallcommandshint
+msgid "Main menu of Double Commander"
+msgstr ""
+
+#: ulng.rsmobilesettingsalloptions
+msgid "All settings"
+msgstr ""
+
+#: ulng.rsmobilesettingsalloptionshint
+msgid "Options of Double Commander"
+msgstr ""
+
+#: ulng.rsmobilemarktitle
+msgid "Mark/Unmark files:"
+msgstr ""
+
+#: ulng.rsmobilemarkhint
+msgid "Tip: tap the icon of a file/folder to select it manually!"
+msgstr ""
+
+#: ulng.rsmobilemarkfiles
+msgid "Files"
+msgstr ""
+
+#: ulng.rsmobilemarkfolders
+msgid "Folders"
+msgstr ""
+
+#: ulng.rsmobilemarkselect
+msgid "Select"
+msgstr ""
+
+#: ulng.rsmobilemarkunselect
+msgid "Unselect"
+msgstr ""
+
+#: ulng.rsmobilemarkinvert
+msgid "Invert selection"
 msgstr ""
 
 #: ulng.rsmobileplacedevice

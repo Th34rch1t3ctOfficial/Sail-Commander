@@ -33,6 +33,11 @@ var
      using the environment variable DC_MOBILE=1 (or disabled using DC_MOBILE=0).
   }
   gMobileMode: Boolean = False;
+  {en
+     Appearance chosen by the user: 0 - automatic, 1 - dark, 2 - light
+     (stored in the early configuration)
+  }
+  gMobileTheme: Integer = 0;
 
 {en
    Returns @true when running on Sailfish OS.
@@ -54,6 +59,15 @@ procedure InitializeMobileStyle;
    DC_MOBILE_THEME=dark (or DC_MOBILE_THEME=light).
 }
 function MobileDarkTheme: Boolean;
+{en
+   Switches the application palette at runtime.
+}
+procedure MobileSetDarkTheme(ADark: Boolean);
+{en
+   Space at the top of the window which is covered by
+   the display cutout (notch), in device pixels.
+}
+function MobileTopMargin: Integer;
 {en
    User interface scale factor relative to a 96 DPI screen.
 }
@@ -190,6 +204,9 @@ const
 var
   AValue: String;
 begin
+  // Chosen by the user in the application
+  if gMobileTheme in [1, 2] then
+    Exit(gMobileTheme = 1);
   if FDarkTheme < 0 then
   begin
     FDarkTheme:= 1;
@@ -279,7 +296,7 @@ begin
 end;
 
 {$IF DEFINED(LCLQT5)}
-procedure ApplyQtStyle;
+procedure ApplyQtPalette(ADark: Boolean);
 const
   // Dark palette close to the Sailfish OS ambiences
   clWindowBack   = $2D2D2D;
@@ -306,20 +323,17 @@ const
   end;
 
 var
-  AStyle: QStyleH;
-  AName: WideString;
   APalette: QPaletteH;
-  AStyleSheet: WideString;
 begin
-  // There is no native widget style, so use the built-in one
-  AName:= 'Fusion';
-  AStyle:= QStyleFactory_create(@AName);
-  if Assigned(AStyle) then QApplication_setStyle(AStyle);
-
-  if MobileDarkTheme then
-  begin
   APalette:= QPalette_Create();
   try
+  if not ADark then
+  begin
+    // Light palette of the built-in style
+    QStyle_standardPalette(QApplication_style(), APalette);
+    QApplication_setPalette(APalette);
+  end
+  else begin
     SetColor(APalette, QPaletteWindow, clWindowBack);
     SetColor(APalette, QPaletteWindowText, clTextFore);
     SetColor(APalette, QPaletteBase, clBaseBack);
@@ -342,10 +356,24 @@ begin
     SetDisabled(APalette, QPaletteText);
     SetDisabled(APalette, QPaletteButtonText);
     QApplication_setPalette(APalette);
+  end;
   finally
     QPalette_Destroy(APalette);
   end;
-  end;
+end;
+
+procedure ApplyQtStyle;
+var
+  AStyle: QStyleH;
+  AName: WideString;
+  AStyleSheet: WideString;
+begin
+  // There is no native widget style, so use the built-in one
+  AName:= 'Fusion';
+  AStyle:= QStyleFactory_create(@AName);
+  if Assigned(AStyle) then QApplication_setStyle(AStyle);
+
+  ApplyQtPalette(MobileDarkTheme);
 
   // Make the standard widgets big enough for a finger
   AStyleSheet:= WideString(Format(
@@ -363,6 +391,27 @@ begin
   QApplication_setStyleSheet(QApplicationH(QCoreApplication_instance()), @AStyleSheet);
 end;
 {$ENDIF}
+
+procedure MobileSetDarkTheme(ADark: Boolean);
+begin
+  if ADark then gMobileTheme:= 1 else gMobileTheme:= 2;
+{$IF DEFINED(LCLQT5)}
+  ApplyQtPalette(ADark);
+{$ENDIF}
+end;
+
+function MobileTopMargin: Integer;
+var
+  AValue: Integer;
+begin
+  AValue:= StrToIntDef(GetEnvironmentVariable('DC_MOBILE_TOP_MARGIN'), -1);
+  if AValue < 0 then
+  begin
+    // Phones with Sailfish OS have a camera cutout in the status bar area
+    if IsSailfishOS then AValue:= 32 else AValue:= 0;
+  end;
+  Result:= MobilePx(AValue);
+end;
 
 procedure InitializeMobileStyle;
 begin
