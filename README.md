@@ -10,7 +10,7 @@ a *mobile mode* which is turned on automatically on Sailfish OS:
 - touch file view: two-line items, kinetic scrolling, tap opens a file or directory,
   tap on an icon selects it, long press shows the context menu
 - the tool bar at the top with the main menu behind the three dots button,
-  the main file commands (Edit, Copy, Move, Delete) at the bottom
+  the main file commands (Edit, Copy, Move, Directory, Delete) at the bottom
 - a list of places (device memory, memory cards, user directories, file system root,
   bookmarks) above the root directory instead of the drive bar
 - dark and light appearance which follows the Sailfish OS ambience

@@ -49,7 +49,7 @@ uses
 
 const
   // Commands which are shown at the bottom of the main window
-  MOBILE_COMMANDS: array[0..3] of String = ('cm_Edit', 'cm_Copy', 'cm_Rename', 'cm_Delete');
+  MOBILE_COMMANDS: array[0..4] of String = ('cm_Edit', 'cm_Copy', 'cm_Rename', 'cm_MakeDir', 'cm_Delete');
 
   KEYS_HEIGHT = 56;
 
