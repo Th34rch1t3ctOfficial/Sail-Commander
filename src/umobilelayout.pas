@@ -41,7 +41,7 @@ implementation
 
 uses
   Controls, Graphics, Buttons, Forms, Menus, ExtCtrls, Math, LCLType, uGlobs, uMobile, uFilePanelSelect,
-  uPixMapManager, fMain
+  uPixMapManager, KASToolBar, KASToolItems, uKASToolItemsExtended, fMain
 {$IF DEFINED(LCLQT5)}
   , qtwidgets
 {$ENDIF}
@@ -331,6 +331,28 @@ begin
     ShowMainMenu(ClientToScreen(Classes.Point(0, Height)));
 end;
 
+{en
+   Removes tool bar buttons which are in the file panel header already.
+}
+procedure RemoveDuplicateButtons;
+var
+  I: Integer;
+  AItem: TKASToolItem;
+begin
+  with frmMain.MainToolBar do
+  begin
+    for I:= ButtonCount - 1 downto 0 do
+    begin
+      AItem:= Buttons[I].ToolItem;
+      if (AItem is TKASCommandItem) and
+         SameText(TKASCommandItem(AItem).Command, 'cm_Refresh') then
+      begin
+        RemoveButton(I);
+      end;
+    end;
+  end;
+end;
+
 procedure TLayoutHelper.UpdateTopPanel;
 var
   X, Y, I, D, ASize: Integer;
@@ -391,6 +413,7 @@ begin
     FMenuButton.Width:= gToolBarButtonSize;
     FMenuButton.Height:= gToolBarButtonSize;
 
+    RemoveDuplicateButtons;
     MainToolBar.Visible:= True;
     FTopPanel.Top:= -1;
   end;

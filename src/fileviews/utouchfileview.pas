@@ -904,6 +904,13 @@ begin
     if Length(HEADER_ICONS[AZone]) > 0 then
       FIcons[AZone]:= PixMapManager.GetThemeIcon(HEADER_ICONS[AZone], gIconsSize);
   end;
+  // The refresh icon has a different look in the big sizes,
+  // use the green one which is on the tool bar of a desktop
+  FreeAndNil(FIcons[hzRefresh]);
+  FIcons[hzRefresh]:= PixMapManager.GetThemeIcon(HEADER_ICONS[hzRefresh], 24);
+  if Assigned(FIcons[hzRefresh]) and (gIconsSize > 24) then
+    FIcons[hzRefresh]:= StretchBitmap(FIcons[hzRefresh], gIconsSize,
+                                      DimColor(gColors.FilePanel^.BackColor), True);
 end;
 
 procedure TTouchFileView.DrawIcon(ACanvas: TCanvas; const ARect: TRect; AIcon: TBitmap);
