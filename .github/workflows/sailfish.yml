@@ -2,22 +2,11 @@ name: build-sailfish
 
 # Builds the Sailfish OS package (RPM) of Sail Commander
 
+# Started manually only (Actions -> build-sailfish -> Run workflow),
+# so the package is built once all the changes are done
+
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - 'claude/**'
-    paths:
-      - '.github/workflows/sailfish.yml'
-      - 'install/sailfish/**'
-      - 'rpm/**'
-      - 'src/**'
-      - 'components/**'
-      - 'plugins/**'
-      - 'pixmaps/**'
-      - 'language/**'
-  release:
-    types: [prereleased, released]
 
 concurrency:
   group: sailfish-${{ github.ref }}
