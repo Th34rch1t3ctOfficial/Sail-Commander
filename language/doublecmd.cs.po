@@ -11671,6 +11671,14 @@ msgstr "Vybrat"
 msgid "Unselect"
 msgstr "Odebrat z výběru"
 
+#: ulng.rsmobileeditorsaveas
+msgid "Save as..."
+msgstr "Uložit jako..."
+
+#: ulng.rsmobileeditorclosenosave
+msgid "Close (without saving)"
+msgstr "Zavřít (bez uložení)"
+
 #: ulng.rsmobilemarkinvert
 msgid "Invert selection"
 msgstr "Invertovat výběr"

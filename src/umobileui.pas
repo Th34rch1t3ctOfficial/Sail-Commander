@@ -26,7 +26,7 @@ unit uMobileUI;
 interface
 
 uses
-  Classes, SysUtils, Types, Menus;
+  Classes, SysUtils, Types, Menus, Forms, ActnList, Controls, SynEdit;
 
 {en
    Shows a popup menu inside the window and waits until it is closed.
@@ -53,15 +53,27 @@ procedure MobileToggleTheme;
    new menu classes are created, they reset the hook.
 }
 procedure MobileHookPopupMenus;
+{en
+   Hides the menu bar of a window, Qt keeps it visible otherwise.
+}
+procedure MobileHideMenuBar(AForm: TCustomForm);
+{en
+   Changes the editor window to look like a phone application: a header
+   with the file name, save, find, find next and menu buttons, wrapped
+   text without line numbers, no menu bar, tool bar and status bar.
+}
+procedure MobileSetupEditor(AForm: TForm; AEditor: TSynEdit;
+  ASave, ASaveAs, AFind, AFindNext: TBasicAction; AToolBar, AStatusBar: TControl);
 
 implementation
 
 uses
-  Controls, Graphics, Forms, StdCtrls, ExtCtrls, LCLType, LCLIntf, LCLProc,
+  Graphics, StdCtrls, ExtCtrls, Buttons, LCLType, LCLIntf, LCLProc,
+  SynEditWrappedView, uPixMapManager,
   Math, GraphType, IntfGraphics, FPImage, LazUTF8, Process, uGlobs, uLng, uMobile, uEarlyConfig,
   uTouchFileView, fMain
 {$IF DEFINED(LCLQT5)}
-  , WSLCLClasses, QtWSMenus
+  , WSLCLClasses, QtWSMenus, qtwidgets
 {$ENDIF}
   ;
 
@@ -1100,7 +1112,348 @@ begin
   MarkDialog:= TMobileMarkDialog.Create;
 end;
 
+{ Menu bar }
+
+type
+  TMenuBarHider = class
+    procedure Hide(Data: PtrInt);
+  end;
+
+var
+  MenuBarHider: TMenuBarHider = nil;
+
+procedure TMenuBarHider.Hide(Data: PtrInt);
+var
+  AForm: TCustomForm absolute Data;
+  I: Integer;
+  AFound: Boolean;
+begin
+  // The window could be closed in the meantime
+  AFound:= False;
+  for I:= 0 to Screen.CustomFormCount - 1 do
+    if Screen.CustomForms[I] = AForm then AFound:= True;
+  if not AFound then Exit;
+  if not AForm.HandleAllocated then
+  begin
+    Application.QueueAsyncCall(@Hide, Data);
+    Exit;
+  end;
+{$IF DEFINED(LCLQT5)}
+  if TQtWidget(AForm.Handle) is TQtMainWindow then
+  begin
+    with TQtMainWindow(AForm.Handle) do
+      if Assigned(MenuBar) then MenuBar.setVisible(False);
+  end;
+{$ENDIF}
+end;
+
+procedure MobileHideMenuBar(AForm: TCustomForm);
+begin
+  if not Assigned(MenuBarHider) then MenuBarHider:= TMenuBarHider.Create;
+  if Assigned(AForm.Menu) then AForm.Menu:= nil;
+  Application.QueueAsyncCall(@MenuBarHider.Hide, PtrInt(AForm));
+end;
+
+{ TMobileEditorHeader }
+
+type
+  TMobileEditorHeader = class(TComponent)
+  private
+    FForm: TForm;
+    FEditor: TSynEdit;
+    FSpace, FPanel: TPanel;
+    FTitle: TLabel;
+    FButtons: array[0..3] of TSpeedButton;
+    FSaveAs: TBasicAction;
+    FMenu: TPopupMenu;
+    FTimer: TTimer;
+    // Scrolling by a finger
+    FDownY, FDownTop: Integer;
+    FScrolling: Boolean;
+    FOldMouseDown: TMouseEvent;
+    FOldMouseMove: TMouseMoveEvent;
+    FOldMouseUp: TMouseEvent;
+    procedure Deselect(Data: PtrInt);
+    procedure EditorMouseUp(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
+    procedure EditorMouseDown(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
+    procedure EditorMouseMove(Sender: TObject; Shift: TShiftState; X, Y: Integer);
+    procedure PanelResize(Sender: TObject);
+    procedure SpaceResize(Sender: TObject);
+    procedure TimerTick(Sender: TObject);
+    procedure MenuClick(Sender: TObject);
+    procedure ItemClick(Sender: TObject);
+  public
+    constructor CreateFor(AForm: TForm; AEditor: TSynEdit;
+      ASave, ASaveAs, AFind, AFindNext: TBasicAction);
+  end;
+
+  // Access to the view position, it counts wrapped lines
+  TSynEditAccess = class(TSynEdit);
+
+const
+  EM_SAVE_AS = 1;
+  EM_CLOSE = 2;
+  EM_SETTINGS = 3;
+
+function CreateFindNextIcon(ASize: Integer): TBitmap;
+var
+  ABase, AArrow: TBitmap;
+begin
+  // There is no find next icon, so the arrow is drawn over the find icon
+  Result:= TBitmap.Create;
+  Result.SetSize(ASize, ASize);
+  Result.Transparent:= True;
+  Result.TransparentColor:= clFuchsia;
+  Result.Canvas.Brush.Color:= clFuchsia;
+  Result.Canvas.FillRect(0, 0, ASize, ASize);
+  ABase:= PixMapManager.GetThemeIcon('edit-find', ASize);
+  AArrow:= PixMapManager.GetThemeIcon('go-next', ASize div 2);
+  try
+    if Assigned(ABase) then Result.Canvas.Draw(0, 0, ABase);
+    if Assigned(AArrow) then Result.Canvas.Draw(ASize - AArrow.Width, ASize - AArrow.Height, AArrow);
+  finally
+    ABase.Free;
+    AArrow.Free;
+  end;
+end;
+
+constructor TMobileEditorHeader.CreateFor(AForm: TForm; AEditor: TSynEdit;
+  ASave, ASaveAs, AFind, AFindNext: TBasicAction);
+
+  function AddItem(const ACaption: String; ATag: Integer): TMenuItem;
+  begin
+    Result:= TMenuItem.Create(FMenu);
+    Result.Caption:= ACaption;
+    Result.Tag:= ATag;
+    Result.OnClick:= @ItemClick;
+    FMenu.Items.Add(Result);
+  end;
+
+const
+  ICONS: array[0..2] of String = ('document-save', 'edit-find', '');
+var
+  I, ASize: Integer;
+  ABitmap: TBitmap;
+begin
+  inherited Create(AForm);
+  FForm:= AForm;
+  FEditor:= AEditor;
+  FSaveAs:= ASaveAs;
+  ASize:= MobileIconSize(24);
+
+  // Space for the display cutout
+  FSpace:= TPanel.Create(Self);
+  FSpace.Parent:= AForm;
+  FSpace.Align:= alTop;
+  FSpace.BevelOuter:= bvNone;
+  FSpace.Caption:= EmptyStr;
+  FSpace.OnResize:= @SpaceResize;
+  FSpace.Height:= MobileTopMargin;
+  FSpace.Visible:= MobileTopMargin > 0;
+
+  FPanel:= TPanel.Create(Self);
+  FPanel.Parent:= AForm;
+  FPanel.Align:= alTop;
+  FPanel.BevelOuter:= bvNone;
+  FPanel.Caption:= EmptyStr;
+  FPanel.OnResize:= @PanelResize;
+  FPanel.Top:= FSpace.Top + FSpace.Height;
+
+  FTitle:= TLabel.Create(Self);
+  FTitle.Parent:= FPanel;
+  FTitle.AutoSize:= False;
+  FTitle.Layout:= tlCenter;
+  FTitle.Font.Style:= [fsBold];
+
+  for I:= 0 to High(FButtons) do
+  begin
+    FButtons[I]:= TSpeedButton.Create(Self);
+    FButtons[I].Parent:= FPanel;
+    FButtons[I].Flat:= True;
+  end;
+  FButtons[0].Action:= ASave;
+  FButtons[1].Action:= AFind;
+  FButtons[2].Action:= AFindNext;
+  FButtons[3].OnClick:= @MenuClick;
+  for I:= 0 to High(FButtons) do
+  begin
+    FButtons[I].Caption:= EmptyStr;
+    FButtons[I].ShowCaption:= False;
+  end;
+
+  // Icons of Double Commander
+  for I:= 0 to 1 do
+  begin
+    ABitmap:= PixMapManager.GetThemeIcon(ICONS[I], ASize);
+    if Assigned(ABitmap) then
+    try
+      FButtons[I].Glyph.Assign(ABitmap);
+    finally
+      ABitmap.Free;
+    end;
+  end;
+  ABitmap:= CreateFindNextIcon(ASize);
+  try
+    FButtons[2].Glyph.Assign(ABitmap);
+  finally
+    ABitmap.Free;
+  end;
+  // Three dots
+  ABitmap:= TBitmap.Create;
+  try
+    ABitmap.SetSize(ASize, ASize);
+    ABitmap.Canvas.Brush.Color:= clFuchsia;
+    ABitmap.Canvas.FillRect(0, 0, ASize, ASize);
+    ABitmap.Canvas.Pen.Style:= psClear;
+    ABitmap.Canvas.Brush.Color:= ColorToRGB(clBtnText);
+    for I:= -1 to 1 do
+      ABitmap.Canvas.Ellipse(ASize div 2 - ASize div 12, ASize div 2 + I * (ASize div 3) - ASize div 12,
+                             ASize div 2 + ASize div 12 + 1, ASize div 2 + I * (ASize div 3) + ASize div 12 + 1);
+    ABitmap.TransparentColor:= clFuchsia;
+    ABitmap.Transparent:= True;
+    FButtons[3].Glyph.Assign(ABitmap);
+  finally
+    ABitmap.Free;
+  end;
+
+  FMenu:= TPopupMenu.Create(Self);
+  AddItem(rsMobileEditorSaveAs, EM_SAVE_AS);
+  AddItem(rsMobileEditorCloseNoSave, EM_CLOSE);
+  AddItem(rsMobileMenuSettings, EM_SETTINGS);
+
+  FOldMouseDown:= AEditor.OnMouseDown;
+  FOldMouseMove:= AEditor.OnMouseMove;
+  AEditor.OnMouseDown:= @EditorMouseDown;
+  AEditor.OnMouseMove:= @EditorMouseMove;
+  FOldMouseUp:= AEditor.OnMouseUp;
+  AEditor.OnMouseUp:= @EditorMouseUp;
+
+  FTimer:= TTimer.Create(Self);
+  FTimer.Interval:= 300;
+  FTimer.OnTimer:= @TimerTick;
+  TimerTick(nil);
+
+  PanelResize(FPanel);
+end;
+
+procedure TMobileEditorHeader.EditorMouseDown(Sender: TObject;
+  Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
+begin
+  FDownY:= Y;
+  FDownTop:= TSynEditAccess(FEditor).TopView;
+  FScrolling:= False;
+  if Assigned(FOldMouseDown) then FOldMouseDown(Sender, Button, Shift, X, Y);
+end;
+
+procedure TMobileEditorHeader.EditorMouseMove(Sender: TObject;
+  Shift: TShiftState; X, Y: Integer);
+begin
+  if ssLeft in Shift then
+  begin
+    // A finger moves the text instead of selecting it
+    if (not FScrolling) and (Abs(Y - FDownY) > MobilePx(10)) then
+      FScrolling:= True;
+    if FScrolling then
+    begin
+      TSynEditAccess(FEditor).TopView:= Max(1, FDownTop - (Y - FDownY) div Max(1, FEditor.LineHeight));
+      FEditor.BlockBegin:= FEditor.LogicalCaretXY;
+    end;
+  end;
+  if Assigned(FOldMouseMove) then FOldMouseMove(Sender, Shift, X, Y);
+end;
+
+procedure TMobileEditorHeader.Deselect(Data: PtrInt);
+begin
+  FEditor.BlockBegin:= FEditor.LogicalCaretXY;
+end;
+
+procedure TMobileEditorHeader.EditorMouseUp(Sender: TObject;
+  Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
+begin
+  if Assigned(FOldMouseUp) then FOldMouseUp(Sender, Button, Shift, X, Y);
+  // The editor finishes the selection after this event
+  if FScrolling then
+  begin
+    FScrolling:= False;
+    Application.QueueAsyncCall(@Deselect, 0);
+  end;
+end;
+
+procedure TMobileEditorHeader.SpaceResize(Sender: TObject);
+begin
+  // Size in the device pixels, the form scaling should not change it
+  if FSpace.Height <> MobileTopMargin then FSpace.Height:= MobileTopMargin;
+end;
+
+procedure TMobileEditorHeader.PanelResize(Sender: TObject);
+var
+  I, H, X: Integer;
+begin
+  H:= MobilePx(56);
+  if FPanel.Height <> H then
+  begin
+    FPanel.Height:= H;
+    Exit;
+  end;
+  X:= FPanel.ClientWidth;
+  for I:= High(FButtons) downto 0 do
+  begin
+    Dec(X, H);
+    FButtons[I].SetBounds(X, 0, H, H);
+  end;
+  FTitle.SetBounds(MobilePx(12), 0, Max(0, X - MobilePx(16)), H);
+end;
+
+procedure TMobileEditorHeader.TimerTick(Sender: TObject);
+var
+  S: String;
+begin
+  // The editor shows the file name in the window caption
+  S:= ExtractFileName(FForm.Caption);
+  if Length(S) = 0 then S:= FForm.Caption;
+  if FEditor.Modified then S:= '* ' + S;
+  if FTitle.Caption <> S then FTitle.Caption:= S;
+end;
+
+procedure TMobileEditorHeader.MenuClick(Sender: TObject);
+var
+  P: TPoint;
+begin
+  P:= FButtons[3].ClientToScreen(Classes.Point(FButtons[3].Width, FButtons[3].Height));
+  MobileHookPopupMenus;
+  FMenu.PopUp(P.X, P.Y);
+end;
+
+procedure TMobileEditorHeader.ItemClick(Sender: TObject);
+begin
+  case TMenuItem(Sender).Tag of
+    EM_SAVE_AS: FSaveAs.Execute;
+    EM_CLOSE:
+      begin
+        // Do not ask to save the changes
+        FEditor.Modified:= False;
+        FForm.Close;
+      end;
+    EM_SETTINGS: frmMain.Commands.cm_Options(['TfrmOptionsEditor']);
+  end;
+end;
+
+procedure MobileSetupEditor(AForm: TForm; AEditor: TSynEdit;
+  ASave, ASaveAs, AFind, AFindNext: TBasicAction; AToolBar, AStatusBar: TControl);
+begin
+  if not gMobileMode then Exit;
+  MobileHideMenuBar(AForm);
+  AToolBar.Visible:= False;
+  AStatusBar.Visible:= False;
+  // Like a phone notepad: no line numbers, wrapped lines
+  AEditor.Gutter.Visible:= False;
+  AEditor.RightEdge:= -1;
+  TLazSynEditLineWrapPlugin.Create(AEditor);
+  TMobileEditorHeader.CreateFor(AForm, AEditor, ASave, ASaveAs, AFind, AFindNext);
+end;
+
 finalization
+  FreeAndNil(MenuBarHider);
   FreeAndNil(MainMenuHandler);
 
 end.

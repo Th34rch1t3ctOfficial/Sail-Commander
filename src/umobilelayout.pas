@@ -313,6 +313,7 @@ begin
       ACommand:= TKASCommandItem(AItem).Command;
       if SameText(ACommand, 'cm_Refresh') or SameText(ACommand, 'cm_MarkPlus') or
          SameText(ACommand, 'cm_MarkMinus') or SameText(ACommand, 'cm_RunTerm') or
+         SameText(ACommand, 'cm_Options') or
          SameText(ACommand, 'cm_MultiRename') or SameText(ACommand, 'cm_SyncDirs') or
          SameText(ACommand, 'cm_CopyFullNamesToClip') then
         RemoveButton(I)

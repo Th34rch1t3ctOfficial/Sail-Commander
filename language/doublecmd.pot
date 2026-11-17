@@ -11591,6 +11591,14 @@ msgstr ""
 msgid "Unselect"
 msgstr ""
 
+#: ulng.rsmobileeditorsaveas
+msgid "Save as..."
+msgstr ""
+
+#: ulng.rsmobileeditorclosenosave
+msgid "Close (without saving)"
+msgstr ""
+
 #: ulng.rsmobilemarkinvert
 msgid "Invert selection"
 msgstr ""

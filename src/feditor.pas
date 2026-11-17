@@ -261,7 +261,7 @@ uses
   Clipbrd, Dialogs, dmCommonData, dmHigh, SynEditTypes, LCLType, LConvEncoding,
   uLng, uShowMsg, uGlobs, fOptions, DCClassesUtf8, uAdministrator, uHighlighters,
   uOSUtils, uConvEncoding, fOptionsToolsEditor, uDCUtils, uClipboard, uFindFiles,
-  DCOSUtils
+  DCOSUtils, uMobileUI
 {$if lcl_fullversion >= 4990000}
   , SynEditWrappedView
 {$endif}
@@ -386,6 +386,10 @@ begin
   FCommands := TFormCommands.Create(Self, ActListEdit);
 
   FMultiCaret := TSynPluginMultiCaret.Create(Editor);
+
+  // Phone layout in mobile mode
+  MobileSetupEditor(Self, Editor, actFileSave, actFileSaveAs, actEditFind,
+                    actEditFindNext, tbToolBar, StatusBar);
 
 {$IFDEF DARWIN}
   self.BorderIcons:= self.BorderIcons - [biMinimize];

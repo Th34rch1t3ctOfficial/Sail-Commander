@@ -246,6 +246,8 @@ resourcestring
   rsMobileMarkSelect = 'Select';
   rsMobileMarkUnselect = 'Unselect';
   rsMobileMarkInvert = 'Invert selection';
+  rsMobileEditorSaveAs = 'Save as...';
+  rsMobileEditorCloseNoSave = 'Close (without saving)';
   rsMsgErrSetAttribute = 'Can not set attributes for "%s"';
   rsMsgErrSetDateTime = 'Can not set date/time for "%s"';
   rsMsgErrSetOwnership = 'Can not set owner/group for "%s"';

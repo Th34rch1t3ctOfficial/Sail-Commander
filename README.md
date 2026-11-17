@@ -14,6 +14,8 @@ a *mobile mode* which is turned on automatically on Sailfish OS:
   the three dots button shows a short menu (exit, settings, dark/light, help) and
   the settings page with the most useful options
 - the selection button opens a dialog to mark/unmark files by a mask
+- the editor looks like a phone notepad: a header with the file name, save, find,
+  find next and menu buttons, wrapped lines without line numbers, scrolled by a finger
 - the tool bar at the top with the main menu behind the three dots button,
   the main file commands (Edit, Copy, Move, Directory, Delete) at the bottom
 - a list of places (device memory, memory cards, user directories, file system root,
