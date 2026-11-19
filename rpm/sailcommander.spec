@@ -9,7 +9,9 @@
 Name:       sailcommander
 Summary:    Double Commander for Sailfish OS
 Version:    1.3.0
-Release:    1
+# Every build gets its own release number (date and time of the build),
+# so the package manager always takes a newer build as an update
+Release:    %(date -u +%%Y%%m%%d%%H%%M)
 License:    GPLv2+
 URL:        https://github.com/Th34rch1t3ctOfficial/Sail-Commander
 Source0:    %{name}-%{version}.tar.bz2
