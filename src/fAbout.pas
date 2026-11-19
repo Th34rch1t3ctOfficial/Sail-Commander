@@ -60,6 +60,7 @@ type
     procedure frmAboutShow(Sender: TObject);
   private
     FMouseLeave, FMouseEnter: TColor;
+    procedure MobileResize(Sender: TObject);
   protected
     procedure UpdateStyle;
     procedure CMThemeChanged(var Message: TLMessage); message CM_THEMECHANGED;
@@ -75,7 +76,7 @@ implementation
 {$R *.lfm}
 
 uses
-  Clipbrd, dmHelpManager, dmCommonData, uDCVersion, uClipboard, uOSForms;
+  Clipbrd, dmHelpManager, dmCommonData, uDCVersion, uClipboard, uOSForms, uMobile, Math;
 
 const
   cIndention = LineEnding + #32#32;
@@ -157,8 +158,35 @@ begin
   ClipboardSetText(GetVersionInformation + LineEnding);
 end;
 
+procedure TfrmAbout.MobileResize(Sender: TObject);
+var
+  AGap, AHeight: Integer;
+begin
+  AGap:= btnClose.Height div 2;
+  AHeight:= btnCopyToClipboard.BoundsRect.Bottom + AGap + btnClose.Height;
+  pnlInfo.SetBounds((ClientWidth - pnlInfo.Width) div 2, Max(0, (ClientHeight - AHeight) div 2),
+                    pnlInfo.Width, pnlInfo.Height);
+  btnClose.SetBounds((ClientWidth - btnClose.Width) div 2,
+                     pnlInfo.Top + btnCopyToClipboard.BoundsRect.Bottom + AGap,
+                     btnClose.Width, btnClose.Height);
+  btnClose.BringToFront;
+end;
+
 procedure TfrmAbout.FormCreate(Sender: TObject);
 begin
+  // A phone screen has room for the version information only
+  if gMobileMode then
+  begin
+    pnlText.Visible:= False;
+    AutoSize:= False;
+    Constraints.MinWidth:= 0;
+    // Centered in the window, the button right below the information
+    pnlInfo.Anchors:= [];
+    btnClose.AnchorSideLeft.Control:= nil;
+    btnClose.AnchorSideTop.Control:= nil;
+    btnClose.Anchors:= [];
+    AddHandlerOnResize(@MobileResize);
+  end;
   UpdateStyle;
   lblTitle.Font.Color:= FMouseEnter;
   lblHomePageAddress.Font.Color:= FMouseLeave;

@@ -394,7 +394,7 @@ type
 
 implementation
 
-uses fOptionsPluginsBase, fOptionsPluginsDSX, fOptionsPluginsWCX,
+uses uMobile, uMobileUI, fOptionsPluginsBase, fOptionsPluginsDSX, fOptionsPluginsWCX,
      fOptionsPluginsWDX, fOptionsPluginsWFX, fOptionsPluginsWLX, uFlatViewFileSource,
      uFindFiles, Forms, Controls, Dialogs, Clipbrd, strutils, LCLProc, HelpIntfs, DCStringHashListUtf8,
      dmHelpManager, typinfo, fMain, fPackDlg, fMkDir, DCDateTimeUtils, KASToolBar, KASToolItems,
@@ -3602,6 +3602,11 @@ procedure TMainCommands.cm_Search(const Params: array of string);
 var
   TemplateName: String;
 begin
+  if gMobileMode and (Length(Params) = 0) then
+  begin
+    MobileShowFindDialog;
+    Exit;
+  end;
   if fspSearchable in frmMain.ActiveFrame.FileSource.GetProperties then
   begin
     if Length(Params) > 0 then

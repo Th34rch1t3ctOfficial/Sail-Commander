@@ -11635,6 +11635,81 @@ msgstr ""
 msgid "Invert selection"
 msgstr ""
 
+#: ulng.rsmobilefindtitle
+msgctxt "ulng.rsmobilefindtitle"
+msgid "Find files"
+msgstr ""
+
+#: ulng.rsmobilefindmask
+msgctxt "ulng.rsmobilefindmask"
+msgid "Search for:"
+msgstr ""
+
+#: ulng.rsmobilefindregex
+msgctxt "ulng.rsmobilefindregex"
+msgid "RegEx"
+msgstr ""
+
+#: ulng.rsmobilefindselected
+msgctxt "ulng.rsmobilefindselected"
+msgid "Search selected folders"
+msgstr ""
+
+#: ulng.rsmobilefindstart
+msgctxt "ulng.rsmobilefindstart"
+msgid "SEARCH"
+msgstr ""
+
+#: ulng.rsmobilefindstop
+msgctxt "ulng.rsmobilefindstop"
+msgid "STOP"
+msgstr ""
+
+#: ulng.rsmobilefindtext
+msgctxt "ulng.rsmobilefindtext"
+msgid "Containing text:"
+msgstr ""
+
+#: ulng.rsmobilefindcase
+msgctxt "ulng.rsmobilefindcase"
+msgid "Case sensitive"
+msgstr ""
+
+#: ulng.rsmobilefindunicode
+msgctxt "ulng.rsmobilefindunicode"
+msgid "Unicode"
+msgstr ""
+
+#: ulng.rsmobilefindnotolder
+msgctxt "ulng.rsmobilefindnotolder"
+msgid "Not older than:"
+msgstr ""
+
+#: ulng.rsmobilefindolder
+msgctxt "ulng.rsmobilefindolder"
+msgid "Older than:"
+msgstr ""
+
+#: ulng.rsmobilefindsize
+msgctxt "ulng.rsmobilefindsize"
+msgid "Size:"
+msgstr ""
+
+#: ulng.rsmobilefindfolders
+msgctxt "ulng.rsmobilefindfolders"
+msgid "Folders"
+msgstr ""
+
+#: ulng.rsmobilefindprogress
+msgctxt "ulng.rsmobilefindprogress"
+msgid "Searching... found: %d"
+msgstr ""
+
+#: ulng.rsmobilefindnothing
+msgctxt "ulng.rsmobilefindnothing"
+msgid "No files found."
+msgstr ""
+
 #: ulng.rsmobileplacedevice
 msgid "Device memory"
 msgstr ""

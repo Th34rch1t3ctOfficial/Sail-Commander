@@ -110,7 +110,7 @@ implementation
 
 uses
   HelpIntfs, LCLProc, LCLVersion, LazUTF8, LResources, Menus, Translations, Graphics,
-  DCStrUtils, uTranslator, uLng, uGlobsPaths, fMain;
+  DCStrUtils, uTranslator, uLng, uGlobsPaths, fMain, uMobile;
 
 var
   LastOpenedEditor: TOptionsEditorClass = nil;
@@ -213,6 +213,13 @@ begin
   // Initialize property storage
   InitPropStorage(Self);
   TreeFilterEdit.Visible:= (OptionsSearchCache.Count > 0);
+  // On the phone only the page is shown, pages are chosen in the settings
+  if gMobileMode then
+  begin
+    tvTreeView.Visible:= False;
+    splOptionsSplitter.Visible:= False;
+    TreeFilterEdit.Visible:= False;
+  end;
 {$IFDEF DARWIN}
   self.BorderIcons:= self.BorderIcons - [biMinimize];
 {$ENDIF}

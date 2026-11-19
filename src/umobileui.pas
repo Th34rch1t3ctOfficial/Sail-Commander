@@ -44,6 +44,11 @@ procedure MobileShowSettings;
    Shows the mark/unmark files dialog.
 }
 procedure MobileShowMarkDialog;
+
+{en
+   Shows the find files dialog inside the main window
+}
+procedure MobileShowFindDialog;
 {en
    Switches between the dark and the light appearance.
 }
@@ -71,7 +76,8 @@ uses
   Graphics, StdCtrls, ExtCtrls, Buttons, LCLType, LCLIntf, LCLProc,
   SynEditWrappedView, uPixMapManager,
   Math, GraphType, IntfGraphics, FPImage, LazUTF8, Process, uGlobsPaths, uGlobs, uLng, uMobile, uEarlyConfig,
-  uTouchFileView, fMain
+  uTouchFileView, fMain, fOptionsFrame, DateUtils, uFile, uFileView, uFileSource,
+  uFileSystemFileSource, uSearchResultFileSource, uFindFiles, uFindThread, uFileSourceProperty
 {$IF DEFINED(LCLQT5)}
   , WSLCLClasses, QtWSMenus, qtwidgets, qtobjects, qt5
 {$ENDIF}
@@ -174,7 +180,7 @@ type
   TSettingAction = (saAbout, saHelp, saLanguage, saDateTime, saHidden, saIgnore,
                     saFontSize, saLog, saAdvanced);
 
-  TSettingsPage = (spMain, spLanguage, spDateTime, spFontSize, spIgnore);
+  TSettingsPage = (spMain, spLanguage, spDateTime, spFontSize, spIgnore, spAdvanced);
 
   { TMobileSettings }
 
@@ -194,10 +200,36 @@ type
     procedure FillDateTime;
     procedure FillFontSize;
     procedure FillIgnore;
+    procedure FillAdvanced;
     procedure ShowPage(APage: TSettingsPage);
     procedure Back;
     procedure ChoiceClick(AIndex: Integer);
     procedure RowClick(Sender: TObject; AIndex: Integer);
+    procedure Close(Data: PtrInt);
+  public
+    constructor Create;
+    destructor Destroy; override;
+  end;
+
+  { TMobileFindDialog }
+
+  TMobileFindDialog = class
+  private
+    FOverlay: TMobileOverlay;
+    FPanel: TPanel;
+    FMask, FText, FAge, FSize: TEdit;
+    FRegEx, FSelected, FCase, FUnicode, FNotOlder, FOlder, FSizeCheck, FFolders: TCheckBox;
+    FAgeUnit, FSizeOp, FSizeUnit: TComboBox;
+    FStart: TButton;
+    FStatus: TLabel;
+    FThread: TThread;
+    FFound: TStringList;
+    FSearching, FClosing, FDone: Boolean;
+    procedure ThreadDone(Sender: TObject);
+    procedure StartClick(Sender: TObject);
+    procedure OutsideClick(Sender: TObject);
+    procedure Search(Data: PtrInt);
+    procedure ShowResults;
     procedure Close(Data: PtrInt);
   public
     constructor Create;
@@ -224,6 +256,7 @@ var
   MainMenu: TPopupMenu = nil;
   Settings: TMobileSettings = nil;
   MarkDialog: TMobileMarkDialog = nil;
+  FindDialog: TMobileFindDialog = nil;
 
 function GetHostForm: TCustomForm;
 begin
@@ -971,6 +1004,7 @@ begin
     spDateTime: FillDateTime;
     spFontSize: FillFontSize;
     spIgnore:   FillIgnore;
+    spAdvanced: FillAdvanced;
   end;
 end;
 
@@ -1071,6 +1105,31 @@ begin
   FMemo.Lines.Assign(glsIgnoreList);
 end;
 
+procedure TMobileSettings.FillAdvanced;
+
+  procedure AddEditors(AList: TOptionsEditorClassList; const APrefix: String);
+  var
+    I: Integer;
+    ARec: TOptionsEditorRec;
+  begin
+    for I:= 0 to AList.Count - 1 do
+    begin
+      ARec:= AList[I];
+      if ARec.HasChildren and (APrefix = EmptyStr) then
+        FList.Add(mrkSection, ARec.EditorClass.GetTitle);
+      FList.Add(mrkItem, APrefix + ARec.EditorClass.GetTitle, EmptyStr,
+                Pointer(PtrInt(FValues.Count)));
+      FValues.Add(ARec.EditorClass.ClassName);
+      if ARec.HasChildren then
+        AddEditors(ARec.Children, APrefix + '    ');
+    end;
+  end;
+
+begin
+  FList.Add(mrkBack, '‹  ' + rsMobileSettingsAllOptions);
+  AddEditors(OptionsEditorClassList, EmptyStr);
+end;
+
 procedure TMobileSettings.Back;
 begin
   if FPage = spMain then
@@ -1137,7 +1196,9 @@ begin
 
   if FPage <> spMain then
   begin
-    if FList.FRows[AIndex].Kind = mrkCheck then
+    if (FPage = spAdvanced) and (FList.FRows[AIndex].Kind = mrkItem) then
+      frmMain.Commands.cm_Options([FValues[PtrInt(FList.FRows[AIndex].Data)]])
+    else if FList.FRows[AIndex].Kind = mrkCheck then
       ChoiceClick(PtrInt(FList.FRows[AIndex].Data));
     Exit;
   end;
@@ -1162,7 +1223,7 @@ begin
         SaveGlobs;
         Fill;
       end;
-    saAdvanced: cm_Options([]);
+    saAdvanced: ShowPage(spAdvanced);
   end;
 end;
 
@@ -1283,6 +1344,308 @@ procedure MobileShowMarkDialog;
 begin
   if Assigned(MarkDialog) then Exit;
   MarkDialog:= TMobileMarkDialog.Create;
+end;
+
+{ TMobileFindDialog }
+
+constructor TMobileFindDialog.Create;
+var
+  Y, W, H, AMargin, AHalf: Integer;
+
+  procedure AddLabel(const ACaption: String; AHeight: Integer; ABold: Boolean = False);
+  var
+    ALabel: TLabel;
+  begin
+    ALabel:= TLabel.Create(FPanel);
+    ALabel.AutoSize:= False;
+    ALabel.SetBounds(AMargin, Y, W - AMargin * 2, AHeight);
+    ALabel.Caption:= ACaption;
+    if ABold then ALabel.Font.Style:= [fsBold];
+    ALabel.Parent:= FPanel;
+    Inc(Y, AHeight + MobilePx(4));
+  end;
+
+  function AddEdit(const AText: String; ALeft, AWidth: Integer): TEdit;
+  begin
+    Result:= TEdit.Create(FPanel);
+    Result.Parent:= FPanel;
+    Result.Text:= AText;
+    Result.SetBounds(ALeft, Y, AWidth, H);
+  end;
+
+  function AddCheck(const ACaption: String; ALeft, AWidth: Integer): TCheckBox;
+  begin
+    Result:= TCheckBox.Create(FPanel);
+    Result.Parent:= FPanel;
+    Result.Caption:= ACaption;
+    Result.SetBounds(ALeft, Y, AWidth, H);
+  end;
+
+  function AddCombo(const AItems: array of String; AIndex, ALeft, AWidth: Integer): TComboBox;
+  var
+    I: Integer;
+  begin
+    Result:= TComboBox.Create(FPanel);
+    Result.Parent:= FPanel;
+    Result.Style:= csDropDownList;
+    for I:= Low(AItems) to High(AItems) do Result.Items.Add(AItems[I]);
+    Result.ItemIndex:= AIndex;
+    Result.SetBounds(ALeft, Y, AWidth, H);
+  end;
+
+begin
+  FFound:= TStringList.Create;
+  FOverlay:= TMobileOverlay.CreateFor(frmMain, True);
+  FOverlay.OnOutsideClick:= @OutsideClick;
+
+  AMargin:= MobilePx(16);
+  H:= MobilePx(40);
+  W:= Min(FOverlay.ClientWidth - MobilePx(24), MobilePx(440));
+  AHalf:= (W - AMargin * 2) div 2;
+
+  FPanel:= TPanel.Create(FOverlay);
+  FPanel.Parent:= FOverlay;
+  FPanel.BevelOuter:= bvNone;
+  FPanel.BorderStyle:= bsSingle;
+  FPanel.Color:= clBtnFace;
+
+  Y:= AMargin;
+  AddLabel(rsMobileFindTitle, MobilePx(28), True);
+  AddLabel(rsMobileFindMask, MobilePx(22));
+  FMask:= AddEdit('*', AMargin, W - AMargin * 2);
+  Inc(Y, H + MobilePx(6));
+  FRegEx:= AddCheck(rsMobileFindRegEx, AMargin, MobilePx(110));
+  FSelected:= AddCheck(rsMobileFindSelected, AMargin + MobilePx(110), W - AMargin * 2 - MobilePx(110));
+  FSelected.Enabled:= frmMain.ActiveFrame.CloneSelectedFiles.Count > 0;
+  Inc(Y, H + MobilePx(8));
+
+  FStart:= TButton.Create(FPanel);
+  FStart.Parent:= FPanel;
+  FStart.Caption:= rsMobileFindStart;
+  FStart.Default:= True;
+  FStart.OnClick:= @StartClick;
+  FStart.SetBounds(AMargin, Y, W - AMargin * 2, MobilePx(44));
+  Inc(Y, MobilePx(48));
+
+  FStatus:= TLabel.Create(FPanel);
+  FStatus.AutoSize:= False;
+  FStatus.Alignment:= taCenter;
+  FStatus.SetBounds(AMargin, Y, W - AMargin * 2, MobilePx(22));
+  FStatus.Parent:= FPanel;
+  Inc(Y, MobilePx(26));
+
+  AddLabel(rsMobileFindText, MobilePx(22));
+  FText:= AddEdit(EmptyStr, AMargin, W - AMargin * 2);
+  Inc(Y, H + MobilePx(6));
+  FCase:= AddCheck(rsMobileFindCase, AMargin, AHalf + MobilePx(30));
+  FUnicode:= AddCheck(rsMobileFindUnicode, AMargin + AHalf + MobilePx(30), AHalf - MobilePx(30));
+  Inc(Y, H + MobilePx(4));
+  FNotOlder:= AddCheck(rsMobileFindNotOlder, AMargin, AHalf);
+  FOlder:= AddCheck(rsMobileFindOlder, AMargin + AHalf, AHalf);
+  Inc(Y, H + MobilePx(4));
+  FAge:= AddEdit('1', AMargin, AHalf - MobilePx(8));
+  FAgeUnit:= AddCombo([rsTimeUnitSecond, rsTimeUnitMinute, rsTimeUnitHour, rsTimeUnitDay,
+                       rsTimeUnitWeek, rsTimeUnitMonth, rsTimeUnitYear], 2, AMargin + AHalf, AHalf);
+  Inc(Y, H + MobilePx(8));
+  FSizeCheck:= AddCheck(rsMobileFindSize, AMargin, AHalf);
+  FFolders:= AddCheck(rsMobileFindFolders, AMargin + AHalf, AHalf);
+  FFolders.Checked:= True;
+  Inc(Y, H + MobilePx(4));
+  FSizeOp:= AddCombo(['>', '<', '='], 0, AMargin, MobilePx(70));
+  FSize:= AddEdit('64', AMargin + MobilePx(78), W - AMargin * 2 - MobilePx(78 + 88));
+  FSizeUnit:= AddCombo(['B', 'k', 'M', 'G', 'T'], 1, W - AMargin - MobilePx(80), MobilePx(80));
+  Inc(Y, H + AMargin);
+
+  FPanel.SetBounds((FOverlay.ClientWidth - W) div 2,
+                   Max(MobileTopMargin, (FOverlay.ClientHeight - Y) div 3), W, Y);
+
+  FOverlay.Show;
+  FOverlay.BringToFront;
+  FMask.SetFocus;
+  FMask.SelectAll;
+end;
+
+destructor TMobileFindDialog.Destroy;
+begin
+  FOverlay.Free;
+  FFound.Free;
+  inherited Destroy;
+end;
+
+procedure TMobileFindDialog.Close(Data: PtrInt);
+begin
+  if FindDialog = Self then FindDialog:= nil;
+  Free;
+end;
+
+procedure TMobileFindDialog.OutsideClick(Sender: TObject);
+begin
+  if FSearching then
+  begin
+    FClosing:= True;
+    if Assigned(FThread) then FThread.Terminate;
+  end
+  else
+    Application.QueueAsyncCall(@Close, 0);
+end;
+
+procedure TMobileFindDialog.ThreadDone(Sender: TObject);
+begin
+  FDone:= True;
+end;
+
+procedure TMobileFindDialog.StartClick(Sender: TObject);
+begin
+  if FSearching then
+  begin
+    if Assigned(FThread) then FThread.Terminate;
+  end
+  else
+    // The search waits in a loop, so it does not run inside the click
+    Application.QueueAsyncCall(@Search, 0);
+end;
+
+procedure TMobileFindDialog.Search(Data: PtrInt);
+const
+  SIZE_UNITS: array[0..4] of TFileSizeUnit = (suBytes, suKilo, suMega, suGiga, suTera);
+  TIME_UNITS: array[0..6] of TTimeUnit = (tuSecond, tuMinute, tuHour, tuDay, tuWeek, tuMonth, tuYear);
+var
+  AValue: Int64;
+  AAge: Integer;
+  ATemplate: TSearchTemplateRec;
+  AFiles: TFiles;
+  ASelected: TStringList = nil;
+  I: Integer;
+begin
+  ATemplate:= Default(TSearchTemplateRec);
+  with ATemplate do
+  begin
+    StartPath:= frmMain.ActiveFrame.CurrentPath;
+    FilesMasks:= Trim(FMask.Text);
+    if FilesMasks = EmptyStr then FilesMasks:= '*';
+    SearchDepth:= -1;
+    RegExp:= FRegEx.Checked;
+    // Like the competition, a plain word finds every name containing it
+    IsPartialNameSearch:= not RegExp;
+    if not FFolders.Checked then AttributesPattern:= 'd-';
+    AAge:= Max(0, StrToIntDef(FAge.Text, 1));
+    if FNotOlder.Checked then
+    begin
+      IsNotOlderThan:= True;
+      NotOlderThan:= AAge;
+      NotOlderThanUnit:= TIME_UNITS[Max(0, FAgeUnit.ItemIndex)];
+    end;
+    if FOlder.Checked then
+    begin
+      IsDateTo:= True;
+      IsTimeTo:= True;
+      case FAgeUnit.ItemIndex of
+        0: DateTimeTo:= Now - AAge / SecsPerDay;
+        1: DateTimeTo:= Now - AAge / MinsPerDay;
+        2: DateTimeTo:= Now - AAge / HoursPerDay;
+        3: DateTimeTo:= Now - AAge;
+        4: DateTimeTo:= Now - AAge * 7;
+        5: DateTimeTo:= IncMonth(Now, -AAge);
+        else DateTimeTo:= IncMonth(Now, -AAge * 12);
+      end;
+    end;
+    if FSizeCheck.Checked then
+    begin
+      AValue:= StrToInt64Def(FSize.Text, 0);
+      FileSizeUnit:= SIZE_UNITS[Max(0, FSizeUnit.ItemIndex)];
+      IsFileSizeFrom:= FSizeOp.ItemIndex in [0, 2];
+      IsFileSizeTo:= FSizeOp.ItemIndex in [1, 2];
+      FileSizeFrom:= AValue;
+      FileSizeTo:= AValue;
+    end;
+    FindText:= FText.Text;
+    IsFindText:= FindText <> EmptyStr;
+    CaseSensitive:= FCase.Checked;
+    if FUnicode.Checked then
+      TextEncoding:= 'Default|UTF-16LE'
+    else
+      TextEncoding:= 'Default';
+  end;
+
+  if FSelected.Checked then
+  begin
+    ASelected:= TStringList.Create;
+    AFiles:= frmMain.ActiveFrame.CloneSelectedFiles;
+    try
+      for I:= 0 to AFiles.Count - 1 do
+        ASelected.Add(AFiles[I].FullPath);
+    finally
+      AFiles.Free;
+    end;
+  end;
+
+  FFound.Clear;
+  FSearching:= True;
+  FStart.Caption:= rsMobileFindStop;
+  try
+    // The thread frees itself, OnTerminate tells it has finished
+    FDone:= False;
+    FThread:= TFindThread.Create(ATemplate, ASelected);
+    TFindThread(FThread).Items:= FFound;
+    FThread.OnTerminate:= @ThreadDone;
+    FThread.Start;
+    // Found files are added by the thread through Synchronize
+    while not FDone do
+    begin
+      Application.ProcessMessages;
+      CheckSynchronize(20);
+      FStatus.Caption:= Format(rsMobileFindProgress, [FFound.Count]);
+    end;
+    FThread:= nil;
+  finally
+    ASelected.Free;
+    FSearching:= False;
+  end;
+
+  if FClosing then
+  begin
+    Application.QueueAsyncCall(@Close, 0);
+    Exit;
+  end;
+  FStart.Caption:= rsMobileFindStart;
+  if FFound.Count = 0 then
+  begin
+    FStatus.Caption:= rsMobileFindNothing;
+    Exit;
+  end;
+  ShowResults;
+  Application.QueueAsyncCall(@Close, 0);
+end;
+
+procedure TMobileFindDialog.ShowResults;
+var
+  I: Integer;
+  AFile: TFile;
+  AFileList: TFileTree;
+  AView: TFileView;
+  ASource: TSearchResultFileSource;
+begin
+  AView:= frmMain.ActiveFrame;
+  AFileList:= TFileTree.Create;
+  for I:= 0 to FFound.Count - 1 do
+  try
+    AFile:= TFileSystemFileSource.CreateFileFromFile(FFound[I]);
+    AFileList.AddSubNode(AFile);
+  except
+    on EFileNotFound do ;
+  end;
+  ASource:= TSearchResultFileSource.Create(rsSearchResult);
+  ASource.AddList(AFileList, AView.FileSource);
+  AView.AddFileSource(ASource, ASource.GetRootDir);
+  AView.FlatView:= True;
+  AView.SetFocus;
+end;
+
+procedure MobileShowFindDialog;
+begin
+  if Assigned(FindDialog) then Exit;
+  if not (fspSearchable in frmMain.ActiveFrame.FileSource.GetProperties) then Exit;
+  FindDialog:= TMobileFindDialog.Create;
 end;
 
 { Menu bar }

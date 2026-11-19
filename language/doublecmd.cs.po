@@ -11715,6 +11715,81 @@ msgstr "Upravit"
 msgid "Invert selection"
 msgstr "Invertovat výběr"
 
+#: ulng.rsmobilefindtitle
+msgctxt "ulng.rsmobilefindtitle"
+msgid "Find files"
+msgstr "Najít soubory"
+
+#: ulng.rsmobilefindmask
+msgctxt "ulng.rsmobilefindmask"
+msgid "Search for:"
+msgstr "Vyhledat:"
+
+#: ulng.rsmobilefindregex
+msgctxt "ulng.rsmobilefindregex"
+msgid "RegEx"
+msgstr "RegEx"
+
+#: ulng.rsmobilefindselected
+msgctxt "ulng.rsmobilefindselected"
+msgid "Search selected folders"
+msgstr "Prohledat vybrané složky"
+
+#: ulng.rsmobilefindstart
+msgctxt "ulng.rsmobilefindstart"
+msgid "SEARCH"
+msgstr "VYHLEDAT"
+
+#: ulng.rsmobilefindstop
+msgctxt "ulng.rsmobilefindstop"
+msgid "STOP"
+msgstr "ZASTAVIT"
+
+#: ulng.rsmobilefindtext
+msgctxt "ulng.rsmobilefindtext"
+msgid "Containing text:"
+msgstr "Obsahuje text:"
+
+#: ulng.rsmobilefindcase
+msgctxt "ulng.rsmobilefindcase"
+msgid "Case sensitive"
+msgstr "Rozlišovat velikost"
+
+#: ulng.rsmobilefindunicode
+msgctxt "ulng.rsmobilefindunicode"
+msgid "Unicode"
+msgstr "Unicode"
+
+#: ulng.rsmobilefindnotolder
+msgctxt "ulng.rsmobilefindnotolder"
+msgid "Not older than:"
+msgstr "Ne starší než:"
+
+#: ulng.rsmobilefindolder
+msgctxt "ulng.rsmobilefindolder"
+msgid "Older than:"
+msgstr "Starší než:"
+
+#: ulng.rsmobilefindsize
+msgctxt "ulng.rsmobilefindsize"
+msgid "Size:"
+msgstr "Velikost:"
+
+#: ulng.rsmobilefindfolders
+msgctxt "ulng.rsmobilefindfolders"
+msgid "Folders"
+msgstr "Složky"
+
+#: ulng.rsmobilefindprogress
+msgctxt "ulng.rsmobilefindprogress"
+msgid "Searching... found: %d"
+msgstr "Hledám... nalezeno: %d"
+
+#: ulng.rsmobilefindnothing
+msgctxt "ulng.rsmobilefindnothing"
+msgid "No files found."
+msgstr "Nebyly nalezeny žádné soubory."
+
 #: ulng.rsmobileplacedevice
 msgid "Device memory"
 msgstr "Paměť zařízení"
