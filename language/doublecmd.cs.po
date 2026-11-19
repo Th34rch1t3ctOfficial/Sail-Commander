@@ -11640,12 +11640,12 @@ msgid "Main menu of Double Commander"
 msgstr "Hlavní nabídka Double Commanderu"
 
 #: ulng.rsmobilesettingsalloptions
-msgid "All settings"
-msgstr "Všechna nastavení"
+msgid "Advanced settings"
+msgstr "Pokročilé nastavení"
 
 #: ulng.rsmobilesettingsalloptionshint
-msgid "Options of Double Commander"
-msgstr "Nastavení Double Commanderu"
+msgid "All the options of Double Commander"
+msgstr "Všechny volby Double Commanderu"
 
 #: ulng.rsmobilemarktitle
 msgid "Mark/Unmark files:"
@@ -11678,6 +11678,38 @@ msgstr "Uložit jako..."
 #: ulng.rsmobileeditorclosenosave
 msgid "Close (without saving)"
 msgstr "Zavřít (bez uložení)"
+
+#: ulng.rsmobilesettingsfontsize
+msgid "Font size"
+msgstr "Velikost písma"
+
+#: ulng.rsmobilesettingsloghint
+msgid "Writes the operations to a file"
+msgstr "Zapisovat operace do souboru"
+
+#: ulng.rsmobilesettingsignoreedit
+msgid "One name or mask on a line"
+msgstr "Jeden název nebo maska na řádek"
+
+#: ulng.rsmobilesettingsignoreedithint
+msgid "For example: *.bak or .cache"
+msgstr "Například: *.bak nebo .cache"
+
+#: ulng.rsmobileopen
+msgid "Open"
+msgstr "Otevřít"
+
+#: ulng.rsmobileopenwith
+msgid "Open with..."
+msgstr "Otevřít pomocí..."
+
+#: ulng.rsmobileopenview
+msgid "View"
+msgstr "Zobrazit"
+
+#: ulng.rsmobileopenedit
+msgid "Edit"
+msgstr "Upravit"
 
 #: ulng.rsmobilemarkinvert
 msgid "Invert selection"

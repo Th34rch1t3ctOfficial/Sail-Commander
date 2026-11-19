@@ -70,10 +70,10 @@ implementation
 uses
   Graphics, StdCtrls, ExtCtrls, Buttons, LCLType, LCLIntf, LCLProc,
   SynEditWrappedView, uPixMapManager,
-  Math, GraphType, IntfGraphics, FPImage, LazUTF8, Process, uGlobs, uLng, uMobile, uEarlyConfig,
+  Math, GraphType, IntfGraphics, FPImage, LazUTF8, Process, uGlobsPaths, uGlobs, uLng, uMobile, uEarlyConfig,
   uTouchFileView, fMain
 {$IF DEFINED(LCLQT5)}
-  , WSLCLClasses, QtWSMenus, qtwidgets
+  , WSLCLClasses, QtWSMenus, qtwidgets, qtobjects, qt5
 {$ENDIF}
   ;
 
@@ -172,15 +172,31 @@ type
   end;
 
   TSettingAction = (saAbout, saHelp, saLanguage, saDateTime, saHidden, saIgnore,
-                    saFonts, saAssoc, saPlugins, saLog, saAllCommands, saAllOptions);
+                    saFontSize, saLog, saAdvanced);
+
+  TSettingsPage = (spMain, spLanguage, spDateTime, spFontSize, spIgnore);
 
   { TMobileSettings }
 
+  {en
+     Simple settings shown inside the main window
+  }
   TMobileSettings = class
   private
     FOverlay: TMobileOverlay;
     FList: TMobileList;
+    FMemo: TMemo;
+    FPage: TSettingsPage;
+    FValues: TStringList;
     procedure Fill;
+    procedure FillMain;
+    procedure FillLanguage;
+    procedure FillDateTime;
+    procedure FillFontSize;
+    procedure FillIgnore;
+    procedure ShowPage(APage: TSettingsPage);
+    procedure Back;
+    procedure ChoiceClick(AIndex: Integer);
     procedure RowClick(Sender: TObject; AIndex: Integer);
     procedure Close(Data: PtrInt);
   public
@@ -283,15 +299,8 @@ constructor TMobileOverlay.CreateFor(AForm: TCustomForm; ADim: Boolean);
 begin
   inherited Create(AForm);
   FDim:= ADim;
-  ControlStyle:= ControlStyle + [csOpaque];
-  if FDim then
-  try
-    // The overlay cannot be transparent, so show a picture of the window
-    FImage:= AForm.GetFormImage;
-    DarkenBitmap(FImage);
-  except
-    FreeAndNil(FImage);
-  end;
+  // Not dimmed overlay covers the window completely
+  if not FDim then ControlStyle:= ControlStyle + [csOpaque];
   Parent:= AForm;
   SetBounds(0, 0, AForm.ClientWidth, AForm.ClientHeight);
   Anchors:= [akLeft, akTop, akRight, akBottom];
@@ -305,12 +314,21 @@ begin
 end;
 
 procedure TMobileOverlay.Paint;
+{$IF DEFINED(LCLQT5)}
+var
+  AColor: TQColor;
+{$ENDIF}
 begin
-  if Assigned(FImage) then
+{$IF DEFINED(LCLQT5)}
+  if FDim then
   begin
-    Canvas.Draw(0, 0, FImage);
-  end
-  else begin
+    // The window stays visible under a translucent shade
+    QColor_fromRgb(@AColor, 0, 0, 0, 140);
+    QPainter_fillRect(TQtDeviceContext(Canvas.Handle).Widget, 0, 0, Width, Height, @AColor);
+    Exit;
+  end;
+{$ENDIF}
+  begin
     if FDim then
       Canvas.Brush.Color:= BlendColor(clWindow, clBlack, 60)
     else
@@ -856,18 +874,15 @@ end;
 
 { Theme }
 
-procedure MobileToggleTheme;
+{en
+   Starts the application again, settings which are applied
+   when the controls are created need it.
+}
+procedure MobileRestart;
 var
   I: Integer;
   AProcess: TProcess;
 begin
-  if MobileDarkTheme then
-    gMobileTheme:= 2
-  else
-    gMobileTheme:= 1;
-  SaveEarlyConfig;
-  // Colors of every control are set when it is created, so the simplest
-  // reliable way is to start again, the tabs are saved and restored
   AProcess:= TProcess.Create(nil);
   try
     AProcess.Executable:= '/bin/sh';
@@ -883,16 +898,40 @@ begin
   frmMain.Commands.cm_Exit([]);
 end;
 
+procedure MobileToggleTheme;
+begin
+  if MobileDarkTheme then
+    gMobileTheme:= 2
+  else
+    gMobileTheme:= 1;
+  SaveEarlyConfig;
+  // Colors of every control are set when it is created, so the simplest
+  // reliable way is to start again, the tabs are saved and restored
+  MobileRestart;
+end;
+
 { TMobileSettings }
+
+const
+  DATE_TIME_FORMATS: array[0..6] of String = (
+    'dd.mm.yy hh:nn', 'dd.mm.yyyy hh:nn', 'dd.mm.yyyy hh:nn:ss', 'd.m.yyyy hh:nn',
+    'yyyy-mm-dd hh:nn', 'yyyy-mm-dd hh:nn:ss', 'mm/dd/yy hh:nn');
+  FONT_SIZES: array[0..7] of Integer = (8, 9, 10, 11, 12, 14, 16, 18);
 
 constructor TMobileSettings.Create;
 begin
+  FValues:= TStringList.Create;
   FOverlay:= TMobileOverlay.CreateFor(frmMain, False);
   FList:= TMobileList.Create(FOverlay);
   FList.Parent:= FOverlay;
   FList.Align:= alClient;
   FList.OnRowClick:= @RowClick;
-  Fill;
+  FMemo:= TMemo.Create(FOverlay);
+  FMemo.Parent:= FOverlay;
+  FMemo.Align:= alClient;
+  FMemo.ScrollBars:= ssAutoVertical;
+  FMemo.Visible:= False;
+  ShowPage(spMain);
   FOverlay.Show;
   FOverlay.BringToFront;
 end;
@@ -900,10 +939,42 @@ end;
 destructor TMobileSettings.Destroy;
 begin
   FOverlay.Free;
+  FValues.Free;
   inherited Destroy;
 end;
 
+procedure TMobileSettings.ShowPage(APage: TSettingsPage);
+begin
+  FPage:= APage;
+  FList.FOffset:= 0;
+  // The ignore list is a text, the other pages are lists
+  if APage = spIgnore then
+  begin
+    FList.Align:= alTop;
+    FList.Height:= MobilePx(48 + 66);
+    FMemo.Visible:= True;
+  end
+  else begin
+    FMemo.Visible:= False;
+    FList.Align:= alClient;
+  end;
+  Fill;
+end;
+
 procedure TMobileSettings.Fill;
+begin
+  FList.Clear;
+  FValues.Clear;
+  case FPage of
+    spMain:     FillMain;
+    spLanguage: FillLanguage;
+    spDateTime: FillDateTime;
+    spFontSize: FillFontSize;
+    spIgnore:   FillIgnore;
+  end;
+end;
+
+procedure TMobileSettings.FillMain;
 
   procedure AddItem(const ATitle, ASubtitle: String; AAction: TSettingAction);
   begin
@@ -918,30 +989,136 @@ procedure TMobileSettings.Fill;
     FList.FRows[AIndex].Checked:= AChecked;
   end;
 
-var
-  AOffset: Integer;
 begin
-  AOffset:= FList.FOffset;
-  FList.Clear;
-  FList.Add(mrkBack, '‹  ' + rsMobileSettings, EmptyStr, Pointer(-1));
+  FList.Add(mrkBack, '‹  ' + rsMobileSettings);
   FList.Add(mrkSection, rsMobileSettingsAbout);
   AddItem(rsMobileSettingsAboutItem, EmptyStr, saAbout);
   AddItem(rsMobileMenuHelp, EmptyStr, saHelp);
   FList.Add(mrkSection, rsMobileSettingsGeneral);
-  AddItem(rsMobileSettingsLanguage, ExtractFileName(gPOFileName), saLanguage);
+  AddItem(rsMobileSettingsLanguage, GetLanguageName(gpLngDir + gPOFileName), saLanguage);
   AddItem(rsMobileSettingsDateTime,
           FormatDateTime(gDateTimeFormat, EncodeDate(1999, 12, 31) + EncodeTime(22, 33, 0, 0)),
           saDateTime);
   AddCheck(rsMobileSettingsHidden, rsMobileSettingsHiddenHint, saHidden, gShowSystemFiles);
   AddItem(rsMobileSettingsIgnore, rsMobileSettingsIgnoreHint, saIgnore);
-  AddItem(rsMobileSettingsFonts, rsMobileSettingsFontsHint, saFonts);
-  AddItem(rsMobileSettingsAssoc, rsMobileSettingsAssocHint, saAssoc);
-  AddItem(rsMobileSettingsPlugins, rsMobileSettingsPluginsHint, saPlugins);
-  AddCheck(rsMobileSettingsLog, gLogFileName, saLog, gLogFile);
+  AddItem(rsMobileSettingsFontSize, IntToStr(gFonts[dcfMain].Size), saFontSize);
+  AddCheck(rsMobileSettingsLog, rsMobileSettingsLogHint, saLog, gLogFile);
   FList.Add(mrkSection, rsMobileSettingsMore);
-  AddItem(rsMobileSettingsAllCommands, rsMobileSettingsAllCommandsHint, saAllCommands);
-  AddItem(rsMobileSettingsAllOptions, rsMobileSettingsAllOptionsHint, saAllOptions);
-  FList.SetOffset(AOffset);
+  AddItem(rsMobileSettingsAllOptions, rsMobileSettingsAllOptionsHint, saAdvanced);
+end;
+
+procedure TMobileSettings.FillLanguage;
+var
+  I, AIndex: Integer;
+  ASearch: TSearchRec;
+  ANames: TStringList;
+begin
+  FList.Add(mrkBack, '‹  ' + rsMobileSettingsLanguage);
+  ANames:= TStringList.Create;
+  try
+    ANames.Sorted:= True;
+    if FindFirst(gpLngDir + '*.po*', faAnyFile, ASearch) = 0 then
+    try
+      repeat
+        ANames.Add(GetLanguageName(gpLngDir + ASearch.Name) + '=' + ASearch.Name);
+      until FindNext(ASearch) <> 0;
+    finally
+      FindClose(ASearch);
+    end;
+    for I:= 0 to ANames.Count - 1 do
+    begin
+      AIndex:= FList.Add(mrkCheck, ANames.Names[I], EmptyStr, Pointer(PtrInt(FValues.Count)));
+      FList.FRows[AIndex].Checked:= (ANames.ValueFromIndex[I] = gPOFileName);
+      FValues.Add(ANames.ValueFromIndex[I]);
+    end;
+  finally
+    ANames.Free;
+  end;
+end;
+
+procedure TMobileSettings.FillDateTime;
+var
+  I, AIndex: Integer;
+begin
+  FList.Add(mrkBack, '‹  ' + rsMobileSettingsDateTime);
+  for I:= Low(DATE_TIME_FORMATS) to High(DATE_TIME_FORMATS) do
+  begin
+    AIndex:= FList.Add(mrkCheck, FormatDateTime(DATE_TIME_FORMATS[I], Now), EmptyStr,
+                       Pointer(PtrInt(FValues.Count)));
+    FList.FRows[AIndex].Checked:= (DATE_TIME_FORMATS[I] = gDateTimeFormat);
+    FValues.Add(DATE_TIME_FORMATS[I]);
+  end;
+end;
+
+procedure TMobileSettings.FillFontSize;
+var
+  I, AIndex: Integer;
+begin
+  FList.Add(mrkBack, '‹  ' + rsMobileSettingsFontSize);
+  for I:= Low(FONT_SIZES) to High(FONT_SIZES) do
+  begin
+    AIndex:= FList.Add(mrkCheck, IntToStr(FONT_SIZES[I]), EmptyStr, Pointer(PtrInt(FValues.Count)));
+    FList.FRows[AIndex].Checked:= (FONT_SIZES[I] = gFonts[dcfMain].Size);
+    FValues.Add(IntToStr(FONT_SIZES[I]));
+  end;
+end;
+
+procedure TMobileSettings.FillIgnore;
+begin
+  FList.Add(mrkBack, '‹  ' + rsMobileSettingsIgnore);
+  FList.Add(mrkItem, rsMobileSettingsIgnoreEdit, rsMobileSettingsIgnoreEditHint);
+  FList.FRows[High(FList.FRows)].Enabled:= False;
+  FMemo.Lines.Assign(glsIgnoreList);
+end;
+
+procedure TMobileSettings.Back;
+begin
+  if FPage = spMain then
+  begin
+    Application.QueueAsyncCall(@Close, 0);
+    Exit;
+  end;
+  if FPage = spIgnore then
+  begin
+    // Files are hidden as soon as the list is not empty
+    glsIgnoreList.Assign(FMemo.Lines);
+    gIgnoreListFileEnabled:= Length(Trim(FMemo.Text)) > 0;
+    SaveGlobs;
+    frmMain.FrameLeft.Reload(True);
+    frmMain.FrameRight.Reload(True);
+  end;
+  ShowPage(spMain);
+end;
+
+procedure TMobileSettings.ChoiceClick(AIndex: Integer);
+var
+  AValue: String;
+begin
+  AValue:= FValues[AIndex];
+  case FPage of
+    spLanguage:
+      if AValue <> gPOFileName then
+      begin
+        // Captions are translated when the windows are created
+        gPOFileName:= AValue;
+        SaveGlobs;
+        MobileRestart;
+        Exit;
+      end;
+    spDateTime:
+      begin
+        gDateTimeFormat:= AValue;
+        SaveGlobs;
+        frmMain.UpdateWindowView;
+      end;
+    spFontSize:
+      begin
+        gFonts[dcfMain].Size:= StrToInt(AValue);
+        SaveGlobs;
+        frmMain.UpdateWindowView;
+      end;
+  end;
+  ShowPage(spMain);
 end;
 
 procedure TMobileSettings.Close(Data: PtrInt);
@@ -951,13 +1128,17 @@ begin
 end;
 
 procedure TMobileSettings.RowClick(Sender: TObject; AIndex: Integer);
-var
-  P: TPoint;
-  AItem: TMenuItem;
 begin
   if FList.FRows[AIndex].Kind = mrkBack then
   begin
-    Application.QueueAsyncCall(@Close, 0);
+    Back;
+    Exit;
+  end;
+
+  if FPage <> spMain then
+  begin
+    if FList.FRows[AIndex].Kind = mrkCheck then
+      ChoiceClick(PtrInt(FList.FRows[AIndex].Data));
     Exit;
   end;
 
@@ -965,32 +1146,24 @@ begin
   case TSettingAction(PtrInt(FList.FRows[AIndex].Data)) of
     saAbout:    cm_About([]);
     saHelp:     cm_HelpIndex([]);
-    saLanguage: cm_Options(['TfrmOptionsLanguage']);
-    saDateTime: cm_Options(['TfrmOptionsFilesViews']);
+    saLanguage: ShowPage(spLanguage);
+    saDateTime: ShowPage(spDateTime);
+    saFontSize: ShowPage(spFontSize);
+    saIgnore:   ShowPage(spIgnore);
     saHidden:
       begin
         cm_ShowSysFiles([]);
         SaveGlobs;
+        Fill;
       end;
-    saIgnore:   cm_Options(['TfrmOptionsIgnoreList']);
-    saFonts:    cm_Options(['TfrmOptionsFonts']);
-    saAssoc:    cm_Options(['TfrmOptionsFileAssoc']);
-    saPlugins:  cm_Options(['TfrmOptionsPluginsGroup']);
     saLog:
       begin
         gLogFile:= not gLogFile;
         SaveGlobs;
+        Fill;
       end;
-    saAllCommands:
-      begin
-        // The whole main menu of Double Commander
-        P:= FList.ClientToScreen(Classes.Point(0, 0));
-        AItem:= ShowMenuItems(frmMain.mnuMain.Items, P.X, P.Y);
-        if Assigned(AItem) then AItem.Click;
-      end;
-    saAllOptions: cm_Options([]);
+    saAdvanced: cm_Options([]);
   end;
-  Fill;
 end;
 
 procedure MobileShowSettings;

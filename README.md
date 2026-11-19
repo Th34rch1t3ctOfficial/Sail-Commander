@@ -12,7 +12,9 @@ a *mobile mode* which is turned on automatically on Sailfish OS:
   long press shows the context menu
 - popup menus are drawn inside the window (popup windows do not work on Sailfish OS),
   the three dots button shows a short menu (exit, settings, dark/light, help) and
-  the settings page with the most useful options
+  simple settings pages inside the window (language, date format, hidden files,
+  ignore list, font size, log file), advanced settings open the options of Double Commander
+- tapping a file asks how to open it (open, open with, view, edit)
 - the selection button opens a dialog to mark/unmark files by a mask
 - the editor looks like a phone notepad: a header with the file name, save, find,
   find next and menu buttons, wrapped lines without line numbers, scrolled by a finger

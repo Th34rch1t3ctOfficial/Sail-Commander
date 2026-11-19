@@ -237,8 +237,8 @@ resourcestring
   rsMobileSettingsMore = 'More';
   rsMobileSettingsAllCommands = 'All commands';
   rsMobileSettingsAllCommandsHint = 'Main menu of Double Commander';
-  rsMobileSettingsAllOptions = 'All settings';
-  rsMobileSettingsAllOptionsHint = 'Options of Double Commander';
+  rsMobileSettingsAllOptions = 'Advanced settings';
+  rsMobileSettingsAllOptionsHint = 'All the options of Double Commander';
   rsMobileMarkTitle = 'Mark/Unmark files:';
   rsMobileMarkHint = 'Tip: tap the icon of a file/folder to select it manually!';
   rsMobileMarkFiles = 'Files';
@@ -246,6 +246,14 @@ resourcestring
   rsMobileMarkSelect = 'Select';
   rsMobileMarkUnselect = 'Unselect';
   rsMobileMarkInvert = 'Invert selection';
+  rsMobileOpen = 'Open';
+  rsMobileOpenWith = 'Open with...';
+  rsMobileOpenView = 'View';
+  rsMobileOpenEdit = 'Edit';
+  rsMobileSettingsFontSize = 'Font size';
+  rsMobileSettingsLogHint = 'Writes the operations to a file';
+  rsMobileSettingsIgnoreEdit = 'One name or mask on a line';
+  rsMobileSettingsIgnoreEditHint = 'For example: *.bak or .cache';
   rsMobileEditorSaveAs = 'Save as...';
   rsMobileEditorCloseNoSave = 'Close (without saving)';
   rsMsgErrSetAttribute = 'Can not set attributes for "%s"';

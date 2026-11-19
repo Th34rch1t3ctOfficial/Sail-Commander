@@ -87,6 +87,7 @@ type
     FSideBar: TMobileSideBar;
     procedure MenuButtonClick(Sender: TObject);
     procedure MarkButtonClick(Sender: TObject);
+    procedure TopPanelResize(Sender: TObject);
   public
     FMenuHidden: Boolean;
     procedure HideMainMenu(Data: PtrInt);
@@ -287,6 +288,17 @@ begin
     MobileShowMainMenu(ClientToScreen(Classes.Point(Width, Height)));
 end;
 
+procedure TLayoutHelper.TopPanelResize(Sender: TObject);
+begin
+  // The form scaling makes the button bigger, keep it the same as the tool
+  // bar buttons, so the tool bar is not wrapped too early
+  if (FMenuButton.Width <> gToolBarButtonSize) or (FMenuButton.Height <> gToolBarButtonSize) then
+  begin
+    FMenuButton.Width:= gToolBarButtonSize;
+    FMenuButton.Height:= gToolBarButtonSize;
+  end;
+end;
+
 procedure TLayoutHelper.MarkButtonClick(Sender: TObject);
 begin
   MobileShowMarkDialog;
@@ -353,6 +365,7 @@ begin
       FTopPanel.BevelOuter:= bvNone;
       FTopPanel.Caption:= EmptyStr;
       FTopPanel.AutoSize:= True;
+      FTopPanel.OnResize:= @TopPanelResize;
 
       FMenuButton:= TSpeedButton.Create(FTopPanel);
       FMenuButton.Parent:= FTopPanel;

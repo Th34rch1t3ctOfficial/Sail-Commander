@@ -11560,11 +11560,11 @@ msgid "Main menu of Double Commander"
 msgstr ""
 
 #: ulng.rsmobilesettingsalloptions
-msgid "All settings"
+msgid "Advanced settings"
 msgstr ""
 
 #: ulng.rsmobilesettingsalloptionshint
-msgid "Options of Double Commander"
+msgid "All the options of Double Commander"
 msgstr ""
 
 #: ulng.rsmobilemarktitle
@@ -11597,6 +11597,38 @@ msgstr ""
 
 #: ulng.rsmobileeditorclosenosave
 msgid "Close (without saving)"
+msgstr ""
+
+#: ulng.rsmobilesettingsfontsize
+msgid "Font size"
+msgstr ""
+
+#: ulng.rsmobilesettingsloghint
+msgid "Writes the operations to a file"
+msgstr ""
+
+#: ulng.rsmobilesettingsignoreedit
+msgid "One name or mask on a line"
+msgstr ""
+
+#: ulng.rsmobilesettingsignoreedithint
+msgid "For example: *.bak or .cache"
+msgstr ""
+
+#: ulng.rsmobileopen
+msgid "Open"
+msgstr ""
+
+#: ulng.rsmobileopenwith
+msgid "Open with..."
+msgstr ""
+
+#: ulng.rsmobileopenview
+msgid "View"
+msgstr ""
+
+#: ulng.rsmobileopenedit
+msgid "Edit"
 msgstr ""
 
 #: ulng.rsmobilemarkinvert

@@ -25,7 +25,7 @@ unit uTouchFileView;
 interface
 
 uses
-  Classes, SysUtils, Controls, Graphics, ExtCtrls, LMessages, LCLType, Types,
+  Classes, SysUtils, Controls, Graphics, ExtCtrls, LMessages, LCLType, Types, Menus,
   uDisplayFile, DCXmlConfig, uTypes, uFileView, uFileViewWithMainCtrl,
   uFile, uFileSource, uFileProperty;
 
@@ -118,6 +118,7 @@ type
     constructor Create(AOwner: TComponent; AFileView: TTouchFileView); reintroduce;
     procedure MakeVisible(ARow: Integer);
     procedure UpdateScroll;
+    procedure DetachMouseHandlers;
     property Offset: Integer read FOffset write SetOffset;
     property RowCount: Integer read GetRowCount;
   end;
@@ -149,6 +150,8 @@ type
     // Places
     FPlaces: array of TPlace;
     FPlacesMode: Boolean;
+    FOpenMenu: TPopupMenu;
+    FOpenIndex: PtrInt;
     procedure ClearPlaces;
     procedure LoadPlaces;
     procedure ShowPlaces;
@@ -169,6 +172,8 @@ type
     procedure UpdateFreeSpace;
     // Finger actions
     procedure TapFile(AIndex: PtrInt; AtIcon: Boolean);
+    procedure ShowOpenMenu(AIndex: PtrInt);
+    procedure OpenMenuClick(Sender: TObject);
     function IsTextFile(AFile: TDisplayFile): Boolean;
     procedure LongPressFile(AIndex: PtrInt; const APoint: TPoint);
     procedure HeaderClick(AZone: THeaderZone);
@@ -211,7 +216,7 @@ uses
   LCLIntf, LCLProc, Forms, Math, StdCtrls,
   DCOSUtils, DCStrUtils, uGlobs, uLng, uPixmapManager, uDCUtils, uFileFunctions,
   uFileSourceProperty, uFileViewWithGrid, uOrderedFileView, uMobile, uDrive,
-  uOSUtils, uSysFolders, uKeyboard, uHotDir, uMasks, uMobileUI, fMain
+  uOSUtils, uSysFolders, uKeyboard, uHotDir, uMasks, uMobileUI, uOSForms, fMain
 {$IF DEFINED(UNIX)}
   , uMimeType
 {$ENDIF}
@@ -489,6 +494,15 @@ begin
       V.UpdateRenameFileEditPosition(V.FRenFile.WithExt);
     V.Notify([fvnVisibleFilePropertiesChanged]);
   end;
+end;
+
+procedure TTouchList.DetachMouseHandlers;
+begin
+  OnMouseDown:= nil;
+  OnMouseMove:= nil;
+  OnMouseUp:= nil;
+  OnDblClick:= nil;
+  OnQuadClick:= nil;
 end;
 
 procedure TTouchList.UpdateScroll;
@@ -876,6 +890,9 @@ begin
 
   FList:= TTouchList.Create(Self, Self);
   MainControl:= FList;
+  // Taps, scrolling and the long press are handled by the list itself,
+  // the mouse handlers of the file view would start dragging of files
+  FList.DetachMouseHandlers;
 
   FHeader:= TTouchHeader.Create(Self, Self);
 
@@ -977,13 +994,18 @@ var
       FPlaces[I].Space:= EmptyStr;
   end;
 
-  procedure AddUserFolder(const AName, AFolder: String);
+  procedure AddUserFolder(const AName, AFolder, AIcon: String);
   var
     APath: String;
+    ABitmap: TBitmap;
   begin
     APath:= AHome + AFolder;
     if mbDirectoryExists(APath) then
-      Add(AName, APath, pkFolder, PixMapManager.GetFolderIcon(gIconsSize, ABackColor), False);
+    begin
+      ABitmap:= PixMapManager.GetThemeIcon(AIcon, gIconsSize);
+      if ABitmap = nil then ABitmap:= PixMapManager.GetFolderIcon(gIconsSize, ABackColor);
+      Add(AName, APath, pkFolder, ABitmap, False);
+    end;
   end;
 
 var
@@ -1017,12 +1039,12 @@ begin
   end;
 
   // Well known user directories
-  AddUserFolder(rsMobilePlacePictures, 'Pictures');
-  AddUserFolder(rsMobilePlaceDownloads, 'Downloads');
-  AddUserFolder(rsMobilePlaceDocuments, 'Documents');
-  AddUserFolder(rsMobilePlaceMusic, 'Music');
-  AddUserFolder(rsMobilePlaceVideos, 'Videos');
-  AddUserFolder(rsMobilePlaceAndroid, 'android_storage');
+  AddUserFolder(rsMobilePlacePictures, 'Pictures', 'image-x-generic');
+  AddUserFolder(rsMobilePlaceDownloads, 'Downloads', 'go-down');
+  AddUserFolder(rsMobilePlaceDocuments, 'Documents', 'x-office-document');
+  AddUserFolder(rsMobilePlaceMusic, 'Music', 'audio-x-generic');
+  AddUserFolder(rsMobilePlaceVideos, 'Videos', 'video-x-generic');
+  AddUserFolder(rsMobilePlaceAndroid, 'android_storage', 'drive-removable-media');
 
   // File system root
   Add(rsMobilePlaceRoot, PathDelim, pkFolder,
@@ -1255,8 +1277,68 @@ begin
     // Text files are opened by the editor of Double Commander
     frmMain.Commands.cm_Edit([]);
   end
-  else begin
+  else if AFile.FSFile.IsDirectory or AFile.FSFile.IsLinkToDirectory or
+          (AFile.FSFile.Name = '..') then
+  begin
     ChooseFile(AFile);
+  end
+  else begin
+    // Ask how to open the file
+    ShowOpenMenu(AIndex);
+  end;
+end;
+
+procedure TTouchFileView.ShowOpenMenu(AIndex: PtrInt);
+
+  procedure AddItem(const ACaption: String; ATag: Integer);
+  var
+    AItem: TMenuItem;
+  begin
+    AItem:= TMenuItem.Create(FOpenMenu);
+    AItem.Caption:= ACaption;
+    AItem.Tag:= ATag;
+    AItem.OnClick:= @OpenMenuClick;
+    FOpenMenu.Items.Add(AItem);
+  end;
+
+var
+  P: TPoint;
+begin
+  if not Assigned(FOpenMenu) then
+  begin
+    FOpenMenu:= TPopupMenu.Create(Self);
+    AddItem(rsMobileOpen, 1);
+    AddItem(rsMobileOpenWith, 2);
+    AddItem(rsMobileOpenView, 3);
+    AddItem(rsMobileOpenEdit, 4);
+  end;
+  FOpenIndex:= AIndex;
+  with GetFileRect(AIndex) do
+    P:= FList.ClientToScreen(Classes.Point(FIconColumn, Bottom - FRowHeight div 3));
+  MobileHookPopupMenus;
+  FOpenMenu.PopUp(P.X, P.Y);
+end;
+
+procedure TTouchFileView.OpenMenuClick(Sender: TObject);
+var
+  AFiles: TStringList;
+begin
+  if not IsFileIndexInRange(FOpenIndex) then Exit;
+  SetActiveFile(FOpenIndex, False);
+  case TMenuItem(Sender).Tag of
+    1: ChooseFile(FFiles[FOpenIndex]);
+    2:
+      begin
+        AFiles:= TStringList.Create;
+        try
+          AFiles.Add(FFiles[FOpenIndex].FSFile.FullPath);
+          ShowOpenWithDialog(frmMain, AFiles);
+        finally
+          AFiles.Free;
+        end;
+      end;
+    3: frmMain.Commands.cm_View([]);
+    4: frmMain.Commands.cm_Edit([]);
   end;
 end;
 
@@ -1501,8 +1583,14 @@ begin
 end;
 
 procedure TTouchFileView.DoUpdateView;
+var
+  I: Integer;
 begin
   inherited DoUpdateView;
+
+  // Size and date format could be changed
+  if Assigned(FFiles) then
+    for I:= 0 to FFiles.Count - 1 do FFiles[I].DisplayStrings.Clear;
 
   // The header of this view shows all the information
   pnlHeader.Visible:= False;
