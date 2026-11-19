@@ -40,7 +40,7 @@ procedure MobileUpdatePanels;
 implementation
 
 uses
-  Controls, Graphics, Buttons, Forms, Menus, ExtCtrls, Math, LCLType, uGlobs, uMobile, uFilePanelSelect,
+  Controls, Graphics, Buttons, Forms, Menus, ExtCtrls, Math, LCLType, LMessages, uGlobs, uMobile, uFilePanelSelect,
   uPixMapManager, KASToolBar, KASToolItems, uKASToolItemsExtended, uMobileUI, fMain
 {$IF DEFINED(LCLQT5)}
   , qtwidgets
@@ -84,8 +84,14 @@ type
     FTopSpace: TPanel;
     FTopPanel: TPanel;
     FMenuButton: TSpeedButton;
+    FToolClip: TPanel;
+    FToolOffset, FToolDownX, FToolStartOffset: Integer;
+    FToolTracking, FToolDragged: Boolean;
     FSideBar: TMobileSideBar;
     procedure MenuButtonClick(Sender: TObject);
+    procedure ToolClipResize(Sender: TObject);
+    procedure UpdateToolBarBounds;
+    procedure UserInput(Sender: TObject; Msg: Cardinal);
     procedure MarkButtonClick(Sender: TObject);
     procedure TopPanelResize(Sender: TObject);
   public
@@ -335,6 +341,80 @@ begin
   end;
 end;
 
+procedure TLayoutHelper.UpdateToolBarBounds;
+var
+  I, AWidth, AHeight: Integer;
+begin
+  if not Assigned(FToolClip) then Exit;
+  AWidth:= 0;
+  AHeight:= gToolBarButtonSize;
+  with frmMain.MainToolBar do
+  begin
+    for I:= 0 to ButtonCount - 1 do
+    begin
+      if Buttons[I].Visible then
+        Inc(AWidth, Buttons[I].Width);
+      AHeight:= Max(AHeight, Buttons[I].Height);
+    end;
+  end;
+  if FToolClip.Height <> AHeight then FToolClip.Height:= AHeight;
+  FToolOffset:= Max(0, Min(FToolOffset, AWidth - FToolClip.ClientWidth));
+  frmMain.MainToolBar.SetBounds(-FToolOffset, 0, Max(AWidth, FToolClip.ClientWidth), AHeight);
+end;
+
+procedure TLayoutHelper.ToolClipResize(Sender: TObject);
+begin
+  UpdateToolBarBounds;
+end;
+
+procedure TLayoutHelper.UserInput(Sender: TObject; Msg: Cardinal);
+var
+  AControl: TControl;
+  APoint: TPoint;
+begin
+  if not Assigned(FToolClip) then Exit;
+  if not ((Sender = frmMain.MainToolBar) or
+          ((Sender is TControl) and (TControl(Sender).Parent = frmMain.MainToolBar))) then
+  begin
+    if Msg = LM_LBUTTONUP then FToolTracking:= False;
+    Exit;
+  end;
+
+  case Msg of
+    LM_LBUTTONDOWN:
+      begin
+        FToolTracking:= True;
+        FToolDragged:= False;
+        FToolDownX:= Mouse.CursorPos.X;
+        FToolStartOffset:= FToolOffset;
+      end;
+    LM_MOUSEMOVE:
+      if FToolTracking then
+      begin
+        APoint:= Mouse.CursorPos;
+        if not FToolDragged then
+          FToolDragged:= Abs(APoint.X - FToolDownX) > MobilePx(10);
+        if FToolDragged then
+        begin
+          FToolOffset:= FToolStartOffset - (APoint.X - FToolDownX);
+          UpdateToolBarBounds;
+        end;
+      end;
+    LM_LBUTTONUP:
+      begin
+        if FToolTracking and FToolDragged then
+        begin
+          // Moving the tool bar is not a click on the button under the finger
+          APoint:= frmMain.MainToolBar.ScreenToClient(Mouse.CursorPos);
+          AControl:= frmMain.MainToolBar.ControlAtPos(APoint, [capfAllowDisabled]);
+          if Assigned(AControl) then
+            AControl.ControlState:= AControl.ControlState - [csClicked];
+        end;
+        FToolTracking:= False;
+      end;
+  end;
+end;
+
 procedure TLayoutHelper.UpdateTopPanel;
 var
   X, Y, I, D, ASize: Integer;
@@ -376,13 +456,25 @@ begin
       FMenuButton.AnchorSideRight.Control:= FTopPanel;
       FMenuButton.AnchorSideRight.Side:= asrRight;
 
-      MainToolBar.Parent:= FTopPanel;
+      // The tool bar is one row, wider than the screen, it is moved by a finger
+      FToolClip:= TPanel.Create(FTopPanel);
+      FToolClip.Parent:= FTopPanel;
+      FToolClip.BevelOuter:= bvNone;
+      FToolClip.Caption:= EmptyStr;
+      FToolClip.Anchors:= [akTop, akLeft, akRight];
+      FToolClip.AnchorSideTop.Control:= FTopPanel;
+      FToolClip.AnchorSideLeft.Control:= FTopPanel;
+      FToolClip.AnchorSideRight.Control:= FMenuButton;
+      FToolClip.AnchorSideRight.Side:= asrLeft;
+      FToolClip.OnResize:= @ToolClipResize;
+
+      MainToolBar.Parent:= FToolClip;
       MainToolBar.Align:= alNone;
-      MainToolBar.Anchors:= [akTop, akLeft, akRight];
-      MainToolBar.AnchorSideTop.Control:= FTopPanel;
-      MainToolBar.AnchorSideLeft.Control:= FTopPanel;
-      MainToolBar.AnchorSideRight.Control:= FMenuButton;
-      MainToolBar.AnchorSideRight.Side:= asrLeft;
+      MainToolBar.Anchors:= [akTop, akLeft];
+      MainToolBar.AutoSize:= False;
+      MainToolBar.Wrapable:= False;
+
+      Application.AddOnUserInputHandler(@UserInput);
     end;
 
     // Three dots
@@ -412,6 +504,7 @@ begin
 
     UpdateToolBarButtons;
     MainToolBar.Visible:= True;
+    UpdateToolBarBounds;
     FTopPanel.Top:= -1;
     FTopSpace.Top:= -2;
   end;

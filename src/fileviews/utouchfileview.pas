@@ -48,6 +48,7 @@ type
     Space: String;
     Kind: TPlaceKind;
     Icon: TBitmap;
+    Emblem: String;
   end;
 
   { TTouchHeader }
@@ -172,6 +173,7 @@ type
     procedure UpdateFreeSpace;
     // Finger actions
     procedure TapFile(AIndex: PtrInt; AtIcon: Boolean);
+    function IsHomeFolder(const APath: String): Boolean;
     procedure ShowOpenMenu(AIndex: PtrInt);
     procedure OpenMenuClick(Sender: TObject);
     function IsTextFile(AFile: TDisplayFile): Boolean;
@@ -221,6 +223,107 @@ uses
   , uMimeType
 {$ENDIF}
   ;
+
+var
+  EmblemCache: TStringList = nil;
+
+{en
+   Small picture shown over the folder icon of well known user folders
+}
+function FolderEmblemKey(const AName: String): String;
+var
+  AValue: String;
+begin
+  AValue:= LowerCase(AName);
+  if (AValue = 'pictures') or (AValue = 'dcim') or (AValue = 'camera') or (AValue = 'photos') then
+    Result:= 'camera-photo'
+  else if (AValue = 'downloads') or (AValue = 'download') then
+    Result:= 'go-down'
+  else if (AValue = 'documents') then
+    Result:= 'x-office-document'
+  else if (AValue = 'music') then
+    Result:= 'audio-x-generic'
+  else if (AValue = 'videos') or (AValue = 'movies') then
+    Result:= 'video-x-generic'
+  else if (AValue = 'android_storage') then
+    Result:= '@phone'
+  else
+    Result:= EmptyStr;
+end;
+
+{en
+   A phone: storage of the Android applications
+}
+function CreatePhoneBitmap(ASize: Integer): TBitmap;
+var
+  W, H, X, Y, R: Integer;
+begin
+  Result:= TBitmap.Create;
+  Result.SetSize(ASize, ASize);
+  with Result.Canvas do
+  begin
+    Brush.Color:= clFuchsia;
+    FillRect(0, 0, ASize, ASize);
+    H:= ASize * 15 div 16;
+    W:= H * 5 div 9;
+    X:= (ASize - W) div 2;
+    Y:= (ASize - H) div 2;
+    R:= Max(2, W div 4);
+    Pen.Style:= psClear;
+    // Body
+    Brush.Color:= RGBToColor(76, 175, 80);
+    RoundRect(X, Y, X + W + 1, Y + H + 1, R, R);
+    // Screen
+    Brush.Color:= RGBToColor(33, 33, 33);
+    Rectangle(X + W div 8, Y + H div 8, X + W - W div 8 + 1, Y + H - H div 6 + 1);
+    // Button
+    Brush.Color:= clWhite;
+    R:= Max(1, W div 10);
+    Ellipse(X + W div 2 - R, Y + H - H div 12 - R, X + W div 2 + R + 1, Y + H - H div 12 + R + 1);
+  end;
+  Result.TransparentColor:= clFuchsia;
+  Result.Transparent:= True;
+end;
+
+function GetFolderEmblem(const AKey: String; ASize: Integer): TBitmap;
+var
+  AIndex: Integer;
+  AName: String;
+begin
+  Result:= nil;
+  if AKey = EmptyStr then Exit;
+  if EmblemCache = nil then
+  begin
+    EmblemCache:= TStringList.Create;
+    EmblemCache.OwnsObjects:= True;
+    EmblemCache.Sorted:= True;
+  end;
+  AName:= AKey + '/' + IntToStr(ASize);
+  AIndex:= EmblemCache.IndexOf(AName);
+  if AIndex >= 0 then Exit(TBitmap(EmblemCache.Objects[AIndex]));
+  if AKey = '@phone' then
+    Result:= CreatePhoneBitmap(ASize)
+  else begin
+    Result:= PixMapManager.GetThemeIcon(AKey, ASize);
+    if Assigned(Result) and ((Result.Width <> ASize) or (Result.Height <> ASize)) then
+      Result:= StretchBitmap(Result, ASize, clNone, True);
+  end;
+  EmblemCache.AddObject(AName, Result);
+end;
+
+{en
+   Draws the emblem in the bottom right corner of an icon
+}
+procedure DrawFolderEmblem(ACanvas: TCanvas; X, Y, AIconSize: Integer; const AKey: String);
+var
+  ASize: Integer;
+  AEmblem: TBitmap;
+begin
+  ASize:= AIconSize * 11 div 20;
+  AEmblem:= GetFolderEmblem(AKey, ASize);
+  if Assigned(AEmblem) then
+    ACanvas.Draw(X + AIconSize - ASize, Y + AIconSize - ASize, AEmblem);
+end;
 
 const
   // Names of the Double Commander theme icons
@@ -741,6 +844,9 @@ begin
     end;
     PixMapManager.DrawBitmapOverlay(AFile, fspDirectAccess in V.FileSource.Properties,
                                     Canvas, X, Y);
+    // Well known folders in the home directory have their own picture
+    if AFile.FSFile.IsDirectory and V.IsHomeFolder(AFile.FSFile.Path) then
+      DrawFolderEmblem(Canvas, X, Y, gIconsSize, FolderEmblemKey(AFile.FSFile.Name));
   end;
 
   AWidth:= ARect.Right - V.FIconColumn - V.FMargin * 2;
@@ -789,6 +895,9 @@ begin
   with V.FPlaces[ARow] do
   begin
     V.DrawIcon(Canvas, Classes.Rect(ARect.Left, ARect.Top, V.FIconColumn, ARect.Bottom), Icon);
+    if Assigned(Icon) and (Emblem <> EmptyStr) then
+      DrawFolderEmblem(Canvas, ARect.Left + (V.FIconColumn - Icon.Width) div 2,
+                       ARect.Top + (ARect.Height - Icon.Height) div 2, Icon.Width, Emblem);
 
     Canvas.Brush.Style:= bsClear;
 
@@ -959,6 +1068,14 @@ begin
   SetLength(FPlaces, 0);
 end;
 
+function TTouchFileView.IsHomeFolder(const APath: String): Boolean;
+var
+  AHome: String;
+begin
+  AHome:= IncludeTrailingPathDelimiter(GetHomeDir);
+  Result:= (APath = AHome) or (APath = AHome + 'android_storage' + PathDelim);
+end;
+
 procedure TTouchFileView.LoadPlaces;
 var
   AHome: String;
@@ -988,23 +1105,22 @@ var
     FPlaces[I].Path:= APath;
     FPlaces[I].Kind:= AKind;
     FPlaces[I].Icon:= AIcon;
+    FPlaces[I].Emblem:= EmptyStr;
     if ASpace then
       FPlaces[I].Space:= GetSpace(APath)
     else
       FPlaces[I].Space:= EmptyStr;
   end;
 
-  procedure AddUserFolder(const AName, AFolder, AIcon: String);
+  procedure AddUserFolder(const AName, AFolder: String);
   var
     APath: String;
-    ABitmap: TBitmap;
   begin
     APath:= AHome + AFolder;
     if mbDirectoryExists(APath) then
     begin
-      ABitmap:= PixMapManager.GetThemeIcon(AIcon, gIconsSize);
-      if ABitmap = nil then ABitmap:= PixMapManager.GetFolderIcon(gIconsSize, ABackColor);
-      Add(AName, APath, pkFolder, ABitmap, False);
+      Add(AName, APath, pkFolder, PixMapManager.GetFolderIcon(gIconsSize, ABackColor), False);
+      FPlaces[High(FPlaces)].Emblem:= FolderEmblemKey(AFolder);
     end;
   end;
 
@@ -1030,7 +1146,10 @@ begin
       ADrive:= frmMain.Drives[I];
       if ADrive^.IsMounted and (ADrive^.DriveType <> dtVirtual) and
          StrBegins(ADrive^.Path, PathDelim) and (ADrive^.Path <> PathDelim) and
-         (IncludeTrailingPathDelimiter(ADrive^.Path) <> AHome) then
+         (IncludeTrailingPathDelimiter(ADrive^.Path) <> AHome) and
+         // Only memory cards and USB drives, not the system mounts
+         ((not IsSailfishOS) or StrBegins(ADrive^.Path, '/media/') or
+          StrBegins(ADrive^.Path, '/run/media/')) then
       begin
         Add(ADrive^.DisplayName, ADrive^.Path, pkFolder,
             PixMapManager.GetDriveIcon(ADrive, gIconsSize, ABackColor), True);
@@ -1039,12 +1158,13 @@ begin
   end;
 
   // Well known user directories
-  AddUserFolder(rsMobilePlacePictures, 'Pictures', 'image-x-generic');
-  AddUserFolder(rsMobilePlaceDownloads, 'Downloads', 'go-down');
-  AddUserFolder(rsMobilePlaceDocuments, 'Documents', 'x-office-document');
-  AddUserFolder(rsMobilePlaceMusic, 'Music', 'audio-x-generic');
-  AddUserFolder(rsMobilePlaceVideos, 'Videos', 'video-x-generic');
-  AddUserFolder(rsMobilePlaceAndroid, 'android_storage', 'drive-removable-media');
+  AddUserFolder(rsMobilePlacePictures, 'Pictures');
+  AddUserFolder(rsMobilePlaceDownloads, 'Downloads');
+  AddUserFolder(rsMobilePlaceDocuments, 'Documents');
+  AddUserFolder(rsMobilePlaceMusic, 'Music');
+  AddUserFolder(rsMobilePlaceVideos, 'Videos');
+  if mbDirectoryExists(AHome + 'android_storage') then
+    Add(rsMobilePlaceAndroid, AHome + 'android_storage', pkFolder, CreatePhoneBitmap(gIconsSize), True);
 
   // File system root
   Add(rsMobilePlaceRoot, PathDelim, pkFolder,
@@ -1756,5 +1876,8 @@ begin
   inherited UpdateColor;
   if Assigned(FHeader) then FHeader.Invalidate;
 end;
+
+finalization
+  EmblemCache.Free;
 
 end.
