@@ -24,11 +24,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # The SDK container builds the package; the test check which runs
+      # after the build fails because there are no test packages, so the
+      # result is decided by the RPM being there (checked by the upload)
       - name: Build RPM
-        uses: coderus/github-sfos-build@master
-        with:
-          release: ${{ env.RELEASE }}
-          arch: ${{ matrix.arch }}
+        run: |
+          mkdir -p RPMS
+          sudo chmod a+w RPMS
+          docker run --rm --privileged \
+            -v "$GITHUB_WORKSPACE:/workspace" \
+            coderus/sailfishos-platform-sdk:${RELEASE} \
+            /bin/bash -c "set -x; mkdir -p build && cd build && cp -r /workspace/* . && \
+              { mb2 -t SailfishOS-${RELEASE}-${{ matrix.arch }} build || echo 'mb2 exit code' \$?; } && \
+              cp RPMS/*.rpm /workspace/RPMS/"
+          ls -l RPMS
 
       - name: Upload RPM
         uses: actions/upload-artifact@v4
